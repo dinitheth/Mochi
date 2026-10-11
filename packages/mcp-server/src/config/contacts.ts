@@ -6,6 +6,7 @@ export interface Contact {
   name: string;
   address: string;
   addedAt: string;
+  addressHistory?: Array<{ address: string; changedAt: string }>;
 }
 
 type Book = Record<string, Record<string, Contact>>; // userId -> lowerName -> contact
@@ -48,8 +49,12 @@ export async function saveContact(userId: string | undefined, name: string, addr
   const book = await readBook();
   const u = normalizeUser(userId);
   book[u] = book[u] ?? {};
-  const updated = u in book && clean.toLowerCase() in (book[u] ?? {});
-  const contact: Contact = { name: clean, address, addedAt: new Date().toISOString() };
+  const previous = book[u][clean.toLowerCase()];
+  const updated = Boolean(previous);
+  const changedAt = new Date().toISOString();
+  const addressHistory = previous?.addressHistory ? [...previous.addressHistory] : [];
+  if (previous && previous.address.toLowerCase() !== address.toLowerCase()) addressHistory.push({ address: previous.address, changedAt });
+  const contact: Contact = { name: clean, address, addedAt: previous?.addedAt ?? changedAt, ...(addressHistory.length ? { addressHistory } : {}) };
   book[u][clean.toLowerCase()] = contact;
   await writeBook(book);
   return { contact, updated };

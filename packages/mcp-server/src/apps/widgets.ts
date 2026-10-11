@@ -148,3 +148,38 @@ export const AUCTIONS_HTML = shell(
 })();
   `.trim(),
 );
+
+export const PAYMENT_REQUEST_HTML = shell(
+  '<h2>Mochi Pay</h2><div id="card" class="card"><p class="note">Preparing payment details…</p></div><div id="msg" class="note"></div>',
+  '',
+  `
+(async () => {
+  const card = document.getElementById('card');
+  const msg = document.getElementById('msg');
+  function render(p) {
+    if (!p || !p.paymentUri || !p.qrDataUrl) { card.innerHTML = '<p class="note">Payment request data is incomplete.</p>'; return; }
+    card.innerHTML = '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">' +
+      '<img alt="Scan to pay on Monad" src="' + esc(p.qrDataUrl) + '" style="width:180px;height:180px;background:white;padding:8px;border-radius:8px">' +
+      '<div><div style="font-size:20px;font-weight:700">' + esc(p.amount) + ' ' + esc(p.token) + '</div>' +
+      '<p>' + esc(p.reason) + '</p><p>Invoice ' + esc(p.invoiceId) + '</p>' +
+      '<p class="note">Pay to <code>' + esc(p.merchantAddress) + '</code></p>' +
+      '<p class="note">Expires ' + esc(p.expiresAt) + '</p>' +
+      '<div class="row"><a href="' + esc(p.paymentUri) + '" style="flex:1;text-align:center;background:#836EF9;color:white;border-radius:8px;padding:8px;text-decoration:none;font-weight:600">Open wallet</a>' +
+      '<button class="ghost" id="copy">Copy link</button></div></div></div>';
+    document.getElementById('copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(p.paymentUri); msg.textContent = 'Payment link copied.'; }
+      catch { msg.textContent = 'Copy is unavailable in this host; use the wallet button or QR code.'; }
+    };
+  }
+  let ready = false;
+  window.addEventListener('message', (event) => {
+    if (event.source !== window.parent) return;
+    const m = event.data;
+    if (!m || m.jsonrpc !== '2.0' || m.id !== undefined || m.method !== 'ui/notifications/tool-result') return;
+    const data = m.params && m.params.structuredContent;
+    if (data && data.paymentUri) { ready = true; render(data); }
+  });
+  setTimeout(() => { if (!ready) card.innerHTML = '<p class="note">Call render_payment_request with the payment request details to show its QR code and wallet link.</p>'; }, 1200);
+})();
+  `.trim(),
+);

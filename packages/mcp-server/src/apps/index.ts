@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { AUCTIONS_HTML, AUCTIONS_URI, MARKETPLACE_HTML, MARKETPLACE_URI, UI_MIME } from './widgets.js';
+import { AUCTIONS_HTML, AUCTIONS_URI, MARKETPLACE_HTML, MARKETPLACE_URI, PAYMENT_REQUEST_HTML, UI_MIME } from './widgets.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyServer = any;
@@ -34,6 +34,8 @@ function registerUiResource(server: McpServer, name: string, uri: string, html: 
 export function registerAppUI(server: McpServer): void {
   registerUiResource(server, 'monadmcp-marketplace', MARKETPLACE_URI, MARKETPLACE_HTML);
   registerUiResource(server, 'monadmcp-auctions', AUCTIONS_URI, AUCTIONS_HTML);
+  const PAYMENT_REQUEST_URI = 'ui://monadmcp/payments/request/v1';
+  registerUiResource(server, 'mochi-payment-request', PAYMENT_REQUEST_URI, PAYMENT_REQUEST_HTML);
 
   const s = server as AnyServer;
   const register = (
@@ -156,5 +158,21 @@ export function registerAppUI(server: McpServer): void {
         structuredContent: { count: auctions.length, auctions },
       };
     },
+  );
+  register(
+    'render_payment_request',
+    'Mochi Pay',
+    'Render a merchant AUSD payment request as an in-chat QR code, invoice summary, and Monad wallet link. First call payments_create_request; then pass its widgetData fields to this tool. The widget does not mark a payment as received—verify settlement with payments_check_request.',
+    PAYMENT_REQUEST_URI,
+    {
+      invoiceId: z.string(), amount: z.string(), token: z.literal('AUSD'), merchantAddress: z.string(),
+      paymentUri: z.string(), qrDataUrl: z.string(), expiresAt: z.string(), reason: z.string(), requestId: z.string(),
+    },
+    { invoiceId: z.string(), amount: z.string(), token: z.string(), merchantAddress: z.string(), paymentUri: z.string(), qrDataUrl: z.string(), expiresAt: z.string(), reason: z.string(), requestId: z.string() },
+    'Preparing Mochi Pay…', 'Payment request shown.',
+    async (args: Record<string, string>) => ({
+      content: [{ type: 'text' as const, text: `Payment request ${args.invoiceId}: ${args.amount} ${args.token} to ${args.merchantAddress}. Expiry ${args.expiresAt}. Use payments_check_request to verify settlement.` }],
+      structuredContent: args,
+    }),
   );
 }

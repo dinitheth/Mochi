@@ -7,6 +7,7 @@ import { createOrLoadWallet, getStoredWallet, importWalletRecord } from '../../c
 import { auditLog } from '../../middleware/audit-log.js';
 import { ERC20_ABI, addTool, assertAddress, resolveWallet, textResult } from '../shared.js';
 import { resolveRecipient } from '../../config/contacts.js';
+import { AUSD_ADDRESS } from '../../config/payments.js';
 
 function zerionHeaders(env: Env): Record<string, string> | null {
   if (!env.ZERION_API_KEY) return null;
@@ -20,6 +21,7 @@ const KNOWN_TOKENS: Record<string, Array<{ symbol: string; address: `0x${string}
   // Curated from https://github.com/monad-crypto/token-list (mainnet); testnet intentionally sparse.
   mainnet: [
     { symbol: 'WMON', address: '0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A' },
+    { symbol: 'AUSD', address: AUSD_ADDRESS },
   ],
   testnet: [{ symbol: 'WMON', address: '0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541' }],
 };

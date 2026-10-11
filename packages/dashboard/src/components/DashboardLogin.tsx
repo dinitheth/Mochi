@@ -32,7 +32,7 @@ export default function DashboardLogin() {
   return (
     <main className="max-w-sm mx-auto mt-16 rounded-xl bg-panel p-6 border border-white/10">
       <h2 className="text-lg font-semibold"><span className="text-monad">Mochi</span> sign-in</h2>
-      <p className="mt-2 text-sm text-white/50">Welcome back. Enter the dashboard password to continue.</p>
+      <p className="mt-2 text-sm text-white/50">Welcome back. Sign in with your dashboard or team password. Your team role controls approval access.</p>
       <form onSubmit={submit} className="mt-5 grid gap-3">
         <input
           type="password"

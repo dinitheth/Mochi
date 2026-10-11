@@ -97,6 +97,7 @@ export async function approvalGate(req: ApprovalRequest): Promise<ApprovalOutcom
     valueWei: req.valueWei.toString(),
     reason: req.reason ?? null,
     timestamp: Date.now(),
+    requiredApprovals: req.env.APPROVAL_QUORUM,
   };
 
   try {

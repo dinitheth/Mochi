@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createDashboardSession, SESSION_COOKIE, verifyDashboardPassword } from '@/lib/auth';
+import { authenticateDashboardPassword, createDashboardSession, SESSION_COOKIE } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { password?: string };
-  if (!body.password || !verifyDashboardPassword(body.password)) {
+  const actor = body.password ? authenticateDashboardPassword(body.password) : null;
+  if (!actor) {
     return NextResponse.json({ ok: false, error: 'Invalid dashboard password.' }, { status: 401 });
   }
-  const session = createDashboardSession();
+  const session = createDashboardSession(actor);
   if (!session) {
     return NextResponse.json({ ok: false, error: 'DASHBOARD_SESSION_SECRET is not configured.' }, { status: 503 });
   }

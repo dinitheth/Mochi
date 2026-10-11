@@ -26,10 +26,10 @@ Mochi is built around a practical delegation boundary: the agent can gather info
 
 ## What Mochi includes
 
-- **MCP server:** 44 standard tools for wallets, transactions, contracts, NFTs, DeFi, lending, contacts, settings, and chain data, plus two MCP Apps render tools for Mochi Market and Mochi Auctions.
+- **MCP server:** tools for wallets, transactions, contracts, NFTs, DeFi, payments, lending, contacts, settings, and chain data, plus two MCP Apps render tools for Mochi Market and Mochi Auctions.
 - **Wallet support:** Privy-managed Ethereum wallets, a local development signer, and read-only wallet records.
 - **Dashboard:** password sign-in, wallet and network views, transaction activity, NFT market and auction pages, and a human approval queue.
-- **Monad integrations:** Zerion portfolio and pricing, 0x Swap API, OpenSea Monad listings and supported purchases, a Nansen/Envio market brief, and a read-only Mission Planner for token research and indicative quotes.
+- **Monad integrations:** Zerion portfolio and pricing, 0x and Uniswap v4 swap routes, OpenSea Monad listings and supported purchases, a Nansen/Envio market brief, read-only Aave V3/Kintsu/Perpl insights, and AUSD invoice payments with approval and audit records.
 - **Demo contracts:** Solidity examples for fungible tokens, a small AMM, fixed-price NFT sales, auctions, offers and a lending pool.
 - **Optional indexer:** Envio HyperIndex event handlers for the demo contracts on Monad testnet.
 
@@ -115,6 +115,15 @@ All tools return JSON text with an `ok` result and, where appropriate, a concise
 | `defi_get_token_price` | Resolve a price from the configured DEX quote path or Zerion where available. |
 | `defi_swap_tokens` | On mainnet, prepare/execute a supported 0x exact-input ERC-20 swap with mandatory approval and safety checks; on testnet, use the configured demo router. |
 | `defi_faucet_mint` | Mint demo TTA/TTB tokens on testnet only. |
+| `uniswap_quote_swap` | Request a Monad mainnet Uniswap v4 quote and validate the returned route and router target. Read-only. |
+| `uniswap_swap_tokens` | Execute a supported Uniswap v4 swap after human approval, exact-token approval checks, simulation, and receipt validation. |
+| `aave_markets` | Read the deployed Aave V3 Monad reserve list. |
+| `aave_positions` | Read wallet supply/debt balances and Aave account risk values. No supply or borrow action is enabled. |
+| `kintsu_position` | Read sMON holdings, estimated MON value, and pending delayed unlock requests. |
+| `kintsu_stake_mon` | Stake MON after a quoted minimum sMON amount, simulation, and mandatory human approval. |
+| `kintsu_request_unstake` | Submit a delayed Kintsu unlock request after simulation and mandatory approval; it does not immediately withdraw MON. |
+| `perpl_markets` | Read current Perpl Monad perpetual market context from its public API. No order placement is enabled. |
+| `kuru_orderbook_top` | Read the best bid/ask and precision metadata from a specified Kuru Monad order-book contract. No order placement is enabled. |
 | `lending_positions` | Read pool and loan position information from the configured lending contract. |
 | `lending_deposit` | Deposit MON into the configured NFT lending pool. |
 | `lending_withdraw` | Redeem pool shares for MON where liquidity permits. |
@@ -123,11 +132,31 @@ All tools return JSON text with an `ok` result and, where appropriate, a concise
 
 The lending tools require a configured pool address. The included lending contract is a demo implementation and is unaudited; do not treat it as a production lending protocol.
 
+### PayOps and reconciliation
+
+| Tool | Capability |
+|---|---|
+| `payments_prepare_invoice` | Require a saved, verified contact, reject duplicate invoice references, check AUSD balance, simulate the transfer, flag first-time or unusual recipient/amount history, and return a reviewable payment preview. |
+| `payments_send_invoice` | Reserve the invoice reference under recipient/per-payment/daily treasury rules, require explicit dashboard approval, send AUSD, wait for the receipt, and record settlement status. Broadcast-but-unconfirmed payments remain blocked from retry to prevent duplicates. |
+| `payments_get_policy` / `payments_set_policy` | Read or configure a hard per-payment cap, a UTC-day committed-payment cap, and an optional recipient address allowlist. Invoice recipients must also be saved contacts. The payment ledger rechecks the caps atomically when reserving a payment. |
+| `payments_create_request` + `render_payment_request` | Create an expiring merchant AUSD invoice request and render an in-chat QR code and Monad wallet payment URI. No payment is sent by creating a request. |
+| `payments_check_request` / `payments_inbox` | Inspect AUSD Transfer events for a request and list open, paid, or review-needed requests. Only a unique exact-amount match is auto-confirmed; ambiguous and possible partial/overpayment cases need manual reconciliation. |
+| `payments_send_payout_batch` | Prepare and simulate up to 20 distinct AUSD supplier/contractor transfers, check contacts and treasury caps, obtain one approval for the full batch, then track each receipt. Partial completion is reported per item. |
+| `payments_refund_request` | Prepare a full AUSD refund only after re-verifying the original request’s on-chain payer, token, amount, and merchant wallet; simulation and a separate human approval are mandatory. |
+| `payments_cashflow_forecast` | Project the current AUSD balance against upcoming obligations and expected receipts supplied for that request; flag projected shortfalls. This is a scenario, not a bank feed or automatic forecast. |
+| Shared dashboard approval inbox | Review exact invoice or batch details, risk signals, token, addresses, source wallet, chain, and simulated fee. Team mode records distinct approver votes; rejection stops the action immediately. |
+| `payments_closeout` | Summarize Mochi-recorded AUSD payouts and matched incoming requests over a date range, with unsettled/review records and explorer links. Optionally return spreadsheet-safe CSV. |
+| `wallet_activity_explainer` | Explain the bounded AUSD/WMON scan in plain language, identify saved contacts and Mochi invoice links, summarize incoming/outgoing counts, and include matching Mochi audit actions. It reports scan coverage and known gaps. |
+
+This supports both sides of a small-business payment workflow: **request payment → share a QR/link → verify the on-chain receipt → issue a refund if approved → reconcile**, and **check an invoice → apply policy and history-based warnings → approve a payout or batch → verify settlement → export a closeout**. A standard ERC-20 transfer has no invoice memo: Mochi only auto-matches one exact amount when the request window and other open requests make attribution unambiguous. Payment records, requests, contacts, and policy remain local JSON files on the MCP server; they are not shared multi-replica storage, an accounting platform, or immutable invoice metadata. CSV is an export, not a QuickBooks/Xero integration. Cashflow uses only caller-supplied future items and the current on-chain AUSD balance.
+
+For distinct approval votes, configure `DASHBOARD_TEAM_MEMBERS` in `packages/dashboard/.env.local` as a JSON array of members with unique IDs, individual passwords (12+ characters), and roles (`admin`, `approver`, `preparer`, or `viewer`). Set `APPROVAL_QUORUM` in the MCP server environment to the required number of approvers; there must be at least that many configured admin/approver members. Without team members, the existing `DASHBOARD_PASSWORD` login remains a single admin approver. The approval queue is held in dashboard process memory, so run one dashboard instance for this local implementation.
+
 ### Contacts, settings, and chain data
 
 | Tool | Capability |
 |---|---|
-| `contacts_save` | Save a human-readable recipient name and EVM address. |
+| `contacts_save` | Save a human-readable recipient name and EVM address; address changes retain prior addresses for later payment review warnings. |
 | `contacts_list` | List saved contacts for a `userId`. |
 | `contacts_remove` | Remove a saved contact. |
 | `settings_set_auto_approve` | Enable/disable the user’s capped automatic approval policy and optional action scope. |
@@ -216,6 +245,8 @@ DASHBOARD_SESSION_SECRET=replace-with-a-long-random-secret
 APPROVAL_API_TOKEN=use-the-same-long-random-token-as-the-MCP-server
 MONAD_NETWORK=testnet
 MONAD_RPC_URL=https://testnet-rpc.monad.xyz
+# Optional: replaces the single-password login. Use a unique ID and password for each team member.
+# DASHBOARD_TEAM_MEMBERS=[{"id":"owner","password":"replace-with-12-plus-chars","role":"admin"},{"id":"finance","password":"replace-with-12-plus-chars","role":"approver"}]
 ```
 
 Run the dashboard:
@@ -248,14 +279,19 @@ The HTTP transport does not add application-level authentication in this codebas
 | Privy | Managed wallet creation and server-side transaction signing. | `PRIVY_APP_ID`, `PRIVY_APP_SECRET`. |
 | Zerion | Wallet portfolio and token-price data where supported by the account/API. | `ZERION_API_KEY`. |
 | 0x Swap API v2 | Mainnet exact-input ERC-20 swap route and transaction data. Not a direct Uniswap/Kuru adapter. | `OX_API_KEY`; mandatory human approval on mainnet. |
+| Uniswap Trading API | Mainnet Uniswap v4 exact-input quote and supported swap flow. | `UNISWAP_API_KEY`; mandatory human approval; unsupported signature flows fail closed. |
 | OpenSea API v2 | Read Monad collection listings and buy supported native-MON orders. | `OPENSEA_API_KEY`; buy is restricted to the adapter’s verified flow and mandatory approval. |
+| Aave V3 | Read Monad reserve markets and wallet positions. | Direct mainnet contract reads; supply/borrow actions are not enabled. |
+| Kintsu | Read sMON positions; stake MON and request delayed unlocks. | Direct mainnet contract; writes require dashboard approval and simulation. Redemption after the protocol cooldown is not automated. |
+| Perpl | Read current Monad perpetual market context from its public REST API. | No key required for market context; orders and position management are not enabled. |
+| Agora AUSD | Prepare and send invoice transfers using AUSD on Monad. | Uses the configured Monad RPC and existing Mochi wallet approval flow. |
 | Nansen Token Screener | 24-hour token market screen for Monad. | `NANSEN_API_KEY`. |
 | Nansen Flow Intelligence | 1-day token flow metrics by holder segment (whales, smart traders, public figures, exchanges, and others) for a selected Monad token. | `NANSEN_API_KEY`. |
 | Mission Planner | Combines Nansen, Envio, Monad RPC, optional Zerion token positions, and optional 0x quote context in one read-only MCP tool. | Existing provider keys; no new environment variables. |
 | Envio HyperSync / HyperRPC | Event-log scans and selected accelerated reads. The market brief uses HyperSync Transfer logs; chain tools may fall back among configured sources. | `HYPERSYNC_TOKEN`, `HYPERSYNC_URL`, optional `HYPER_RPC_URL`. |
 | Envio HyperIndex | Optional indexer for Mochi’s demo contracts on Monad testnet. | Separate package in `packages/indexer`; not required by the MCP server. |
 
-**Integration scope:** these are the direct integrations represented in code. Other Monad ecosystem protocols such as Kuru, 1inch, Aave, Morpho, or liquid-staking platforms are not direct Mochi adapters here. A route returned by an aggregator does not mean Mochi implements that underlying protocol’s native API or positions.
+**Integration scope:** Kuru order-book orders, Aave supply/borrow, Kintsu staking actions, and Perpl account trading are not enabled yet. Mera passkey-derived signing is client-side and is not implemented by this server-side MCP wallet; do not send passkey material to Mochi’s server. A route returned by an aggregator does not mean Mochi implements that underlying protocol’s native API or positions.
 
 ### Optional Envio HyperIndex package
 
@@ -372,16 +408,19 @@ The server configuration is parsed in `packages/mcp-server/src/config/env.ts`. P
 | `APPROVAL_WEBHOOK_URL` | Dashboard approval endpoint. | `http://localhost:3001/api/approvals`. |
 | `APPROVAL_API_TOKEN` | Bearer credential shared by MCP server and dashboard. | Set the same strong random value in both. |
 | `APPROVAL_POLL_TIMEOUT_MS` | Maximum wait for an approval decision. | `300000` (5 minutes). |
+| `APPROVAL_QUORUM` | Number of distinct dashboard approvers required for gated actions. | `1`; configure enough `admin`/`approver` members in the dashboard team list. |
 | `MCP_TRANSPORT`, `MCP_HTTP_PORT` | Select stdio/HTTP and HTTP port. | `stdio`, `3002`. |
 | `NANSEN_API_KEY` | Nansen market and collection research. | Optional. |
 | `ZERION_API_KEY` | Zerion portfolio and token data. | Optional. |
 | `OX_API_KEY` | 0x Swap API. | Optional; mainnet swap integration. |
+| `UNISWAP_API_KEY` | Uniswap Trading API. | Optional; mainnet v4 quote/swap integration. |
 | `OPENSEA_API_KEY` | OpenSea API v2. | Optional; listing discovery and supported purchase flow. |
 | `HYPERSYNC_TOKEN`, `HYPERSYNC_URL` | Envio HyperSync data queries. | Token optional; URL defaults to Monad testnet endpoint. Use `https://monad.hypersync.xyz` for Monad mainnet. |
 | `HYPER_RPC_URL` | Optional Envio HyperRPC endpoint. | Empty by default. |
 | `MICROSWAP_POOL_ADDRESS` | Override the testnet demo AMM pool. | Optional. |
 | `MOCK_NFT_ADDRESS`, `MICROMARKET_ADDRESS`, `AUCTION_HOUSE_ADDRESS`, `LENDING_POOL_ADDRESS` | Configure demo contract addresses where supported. | Use verified addresses for the selected network; sample deployments are testnet only. |
 | `DASHBOARD_PASSWORD` | Password checked at dashboard sign-in. | Set in `packages/dashboard/.env.local`. |
+| `DASHBOARD_TEAM_MEMBERS` | Optional JSON array of individually authenticated dashboard members and roles. | Overrides single-password mode; passwords must be at least 12 characters. |
 | `DASHBOARD_SESSION_SECRET` | Signs dashboard session cookies. | Set a long random value in `packages/dashboard/.env.local`. |
 
 Generate unique random values for dashboard secrets and approval credentials. Do not copy example placeholders into a deployed environment.
@@ -400,6 +439,7 @@ The server persists local state under `packages/mcp-server/`:
 
 - `wallet-state.json` — user IDs, wallet IDs, addresses, network, and creation time.
 - `contacts.json` — saved recipient names and addresses.
+- `payments.json`, `payment-requests.json`, `payment-policy.json` — per-account AUSD payouts, merchant payment requests/receipts, and treasury policy.
 - `policy.json` — per-user automatic approval preferences.
 - `collections.json` — locally launched collection records.
 - `audit-log.jsonl` — tool intent/result history and transaction hashes; selected sensitive fields are redacted.
@@ -451,7 +491,7 @@ Mochi/
 │   │   └── src/
 │   │       ├── apps/          # Mochi Market and Auctions MCP Apps
 │   │       ├── config/        # Environment, wallet, chain, and provider clients
-│   │       ├── integrations/  # Nansen, OpenSea, 0x adapters
+│   │       ├── integrations/  # Nansen, OpenSea, 0x, and Uniswap adapters
 │   │       ├── middleware/    # Approval gate, simulation, policy, audit log
 │   │       ├── prompts/       # Agent operating context
 │   │       ├── resources/     # Monad network and wallet resources
@@ -463,6 +503,7 @@ Mochi/
 │   │   └── deployments/       # Public Monad testnet deployment manifests
 │   └── indexer/               # Optional Envio HyperIndex demo indexer
 ├── .env.example               # Safe configuration template
+├── tests/                     # Root Vitest suite for core and integration behavior
 ├── claude_desktop_config.json # Claude Desktop example configuration
 ├── pnpm-workspace.yaml
 └── README.md
@@ -483,7 +524,7 @@ Mochi/
 - The Envio HyperIndex configuration currently targets Monad testnet demo contracts. `defi_monad_market_brief` is a separate mainnet feature using Nansen and optional HyperSync log counts.
 - `defi_plan_monad_mission` is a read-only composition tool. Its optional 0x quote is indicative; execution remains in `defi_swap_tokens` and requires human approval.
 - The 0x adapter uses aggregator routes. It is not a direct integration with every DEX whose liquidity might appear in a route.
-- Direct Kuru, 1inch, Aave, Morpho, Euler, liquid staking, and yield-vault adapters are not included.
+- Kuru order placement/cancellation, Aave supply/borrow, Kintsu redemption after cooldown, Perpl account trading, Mera passkey signing, and cross-border fiat rails are not included. Aave and Perpl currently provide read-only data; Kintsu includes stake and delayed unlock-request actions.
 - Some write tools do not run a generic preflight simulation. Read each tool’s behavior and verify target, amounts, and approval details before signing.
 - The included AMM, NFT marketplace, auction, and lending contracts are demo-grade and unaudited.
 - Third-party API plans, quotas, supported assets, and network coverage are controlled by those providers and can change.

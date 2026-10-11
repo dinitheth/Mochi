@@ -11,10 +11,12 @@ interface NetworkInfo {
   gasPriceGwei?: string;
   network?: string;
 }
+interface ApprovalViewer { id: string; role: 'admin' | 'approver' | 'preparer' | 'viewer' }
 
 export default function Home() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [approvals, setApprovals] = useState<ApprovalRecord[]>([]);
+  const [approvalViewer, setApprovalViewer] = useState<ApprovalViewer | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -23,7 +25,10 @@ export default function Home() {
         fetch('/api/approvals', { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
       ]);
       setWallet(w);
-      if (a?.ok) setApprovals(a.approvals ?? []);
+      if (a?.ok) {
+        setApprovals(a.approvals ?? []);
+        setApprovalViewer(a.viewer ?? null);
+      }
     } catch {
       /* keep stale */
     }
@@ -48,7 +53,7 @@ export default function Home() {
     <main className="grid gap-3 sm:gap-4 min-w-0 [&>*]:min-w-0">
       <WalletCard wallet={wallet} />
       <div>
-        <ApprovalModal approvals={approvals} onRespond={respond} />
+        <ApprovalModal approvals={approvals} onRespond={respond} viewer={approvalViewer} />
       </div>
       <div>
         <TxFeed />

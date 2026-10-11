@@ -6,12 +6,13 @@ import type { ApprovalRecord } from '@/lib/approvals';
 
 export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<ApprovalRecord[]>([]);
+  const [viewer, setViewer] = useState<{ id: string; role: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/approvals', { cache: 'no-store' });
       const data = await res.json();
-      if (data.ok) setApprovals(data.approvals ?? []);
+      if (data.ok) { setApprovals(data.approvals ?? []); setViewer(data.viewer ?? null); }
     } catch {
       /* keep stale */
     }
@@ -36,7 +37,7 @@ export default function ApprovalsPage() {
 
   return (
     <main className="grid gap-4 min-w-0 [&>*]:min-w-0">
-      <ApprovalModal approvals={approvals} onRespond={respond} />
+      <ApprovalModal approvals={approvals} onRespond={respond} viewer={viewer} />
       <div className="rounded-xl bg-panel p-5 border border-white/10">
         <h2 className="text-sm font-semibold tracking-wide text-white/70">DECISION HISTORY</h2>
         {history.length === 0 ? (
