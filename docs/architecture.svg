@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Mochi system architecture</title>
+  <desc id="desc">MCP clients connect to the Mochi server over standard input and output or Streamable HTTP. Mochi connects to Privy, Monad RPC, the approval dashboard, Envio, Nansen, Zerion, 0x, and OpenSea. The optional Envio HyperIndex indexes demo contract events.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#8d75ff"/></marker>
+    <marker id="arrow-muted" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#8490a7"/></marker>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #f4f2ff; }
+      .title { font-size: 28px; font-weight: 700; }
+      .subtitle { font-size: 14px; fill: #aeb4c6; }
+      .section { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; fill: #aab0c2; }
+      .node { fill: #171923; stroke: #51458c; stroke-width: 1.5; }
+      .primary { fill: #211b38; stroke: #9a83ff; stroke-width: 2; }
+      .dashboard { fill: #182329; stroke: #53b8a1; stroke-width: 1.5; }
+      .optional { fill: #191d26; stroke: #748099; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .label { font-size: 16px; font-weight: 650; }
+      .detail { font-size: 12px; fill: #b4bbcc; }
+      .edge { fill: none; stroke: #8d75ff; stroke-width: 2; marker-end: url(#arrow); }
+      .edge-muted { fill: none; stroke: #8490a7; stroke-width: 1.7; marker-end: url(#arrow-muted); }
+      .edge-dashed { fill: none; stroke: #8490a7; stroke-width: 1.7; stroke-dasharray: 6 5; marker-end: url(#arrow-muted); }
+      .edge-label { font-size: 11px; fill: #c6c0e7; }
+    </style>
+  </defs>
+  <rect width="1200" height="760" rx="18" fill="#10121a"/>
+  <text x="48" y="54" class="title">Mochi system architecture</text>
+  <text x="48" y="80" class="subtitle">MCP client access, wallet and chain operations, approval controls, and data providers</text>
+
+  <text x="48" y="128" class="section">CLIENT</text>
+  <text x="355" y="128" class="section">MOCHI APPLICATION</text>
+  <text x="790" y="128" class="section">CHAIN AND APPROVAL</text>
+  <text x="48" y="488" class="section">DATA AND MARKET PROVIDERS</text>
+
+  <rect x="48" y="158" width="235" height="112" rx="13" class="node"/>
+  <text x="70" y="197" class="label">MCP client</text>
+  <text x="70" y="222" class="detail">Codex, Claude, and other clients</text>
+  <text x="70" y="245" class="detail">stdio or Streamable HTTP</text>
+
+  <rect x="355" y="150" width="340" height="220" rx="16" class="primary"/>
+  <text x="382" y="190" class="label">Mochi MCP server</text>
+  <text x="382" y="216" class="detail">TypeScript · MCP SDK · viem</text>
+  <path d="M382 235 H668" stroke="#51458c"/>
+  <text x="382" y="262" class="detail">Tool validation and wallet resolution</text>
+  <text x="382" y="286" class="detail">Approval policy and transaction submission</text>
+  <text x="382" y="310" class="detail">Simulation, integrations, and audit logging</text>
+  <text x="382" y="344" class="detail">43 standard tools + 2 MCP Apps render tools</text>
+
+  <rect x="790" y="150" width="350" height="92" rx="13" class="node"/>
+  <text x="816" y="187" class="label">Privy wallet API</text>
+  <text x="816" y="213" class="detail">Wallet creation and server-side signing</text>
+  <rect x="790" y="276" width="350" height="96" rx="13" class="node"/>
+  <text x="816" y="314" class="label">Monad RPC</text>
+  <text x="816" y="340" class="detail">Mainnet 143 · Testnet 10143</text>
+
+  <path d="M283 214 H355" class="edge"/>
+  <text x="287" y="202" class="edge-label">MCP requests</text>
+  <path d="M695 190 H790" class="edge"/>
+  <text x="706" y="178" class="edge-label">wallet API</text>
+  <path d="M695 318 H790" class="edge"/>
+  <text x="706" y="306" class="edge-label">read · simulate · submit</text>
+
+  <rect x="355" y="398" width="340" height="66" rx="12" class="dashboard"/>
+  <text x="378" y="427" class="label">Mochi dashboard</text>
+  <text x="378" y="449" class="detail">Next.js · local web app on port 3001</text>
+  <rect x="790" y="398" width="350" height="66" rx="12" class="dashboard"/>
+  <text x="814" y="427" class="label">Approval API and human decision</text>
+  <text x="814" y="449" class="detail">Shared bearer token · approve or reject</text>
+
+  <path d="M525 370 V398" class="edge-muted"/>
+  <text x="535" y="389" class="edge-label">web interface</text>
+  <path d="M695 430 H790" class="edge"/>
+  <text x="701" y="418" class="edge-label">request and poll</text>
+  <path d="M790 449 H695" class="edge-muted"/>
+  <text x="703" y="460" class="edge-label">decision</text>
+
+  <rect x="790" y="506" width="350" height="68" rx="12" class="optional"/>
+  <text x="814" y="535" class="label">Envio HyperSync / HyperRPC</text>
+  <text x="814" y="558" class="detail">On-chain log queries and accelerated reads</text>
+  <path d="M620 370 C710 420 726 529 790 539" class="edge-muted"/>
+
+  <rect x="48" y="520" width="646" height="170" rx="14" class="node"/>
+  <text x="72" y="553" class="section">EXTERNAL DATA AND TRANSACTION APIS</text>
+  <text x="72" y="590" class="label">Nansen</text><text x="72" y="613" class="detail">Market screen</text>
+  <text x="270" y="590" class="label">Zerion</text><text x="270" y="613" class="detail">Portfolio and token data</text>
+  <text x="485" y="590" class="label">0x</text><text x="485" y="613" class="detail">Swap routing</text>
+  <text x="72" y="657" class="label">OpenSea</text><text x="270" y="657" class="detail">Monad NFT listings and supported orders</text>
+  <path d="M425 370 C414 432 366 476 330 520" class="edge-muted"/>
+
+  <rect x="790" y="620" width="350" height="70" rx="12" class="optional"/>
+  <text x="814" y="650" class="label">Optional Envio HyperIndex</text>
+  <text x="814" y="674" class="detail">Indexes demo-contract events on testnet</text>
+  <path d="M965 574 V620" class="edge-dashed"/>
+
+  <text x="48" y="730" class="detail">The HyperIndex package is optional. Dashboard and MCP server run as separate applications.</text>
+</svg>

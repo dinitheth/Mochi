@@ -37,75 +37,13 @@ The MCP server also exposes **one agent context prompt**, **four network/wallet/
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    Client["MCP client<br/>Codex · Claude · other clients"]
-    Server["Mochi MCP server<br/>TypeScript · MCP SDK · viem"]
-    Privy["Privy wallet API<br/>wallet creation and signing"]
-    Chain["Monad RPC<br/>mainnet 143 / testnet 10143"]
-    Dashboard["Mochi dashboard<br/>Next.js · localhost:3001"]
-    Approval["Approval API<br/>shared bearer token"]
-    Audit["Local JSONL audit log"]
-    Envio["Envio HyperSync / HyperRPC"]
-    Nansen["Nansen API"]
-    Zerion["Zerion API"]
-    ZeroEx["0x Swap API"]
-    OpenSea["OpenSea API"]
-    Indexer["Optional HyperIndex<br/>demo-contract events"]
-
-    Client <-->|"stdio or Streamable HTTP"| Server
-    Server --> Privy
-    Server <-->|"read / simulate / submit"| Chain
-    Server -->|"approval request and polling"| Approval
-    Approval <--> Dashboard
-    Dashboard -->|"reads wallet, RPC, and audit log"| Chain
-    Server --> Audit
-    Server --> Envio
-    Server --> Nansen
-    Server --> Zerion
-    Server --> ZeroEx
-    Server --> OpenSea
-    Indexer --> Envio
-```
+![Mochi system architecture: MCP clients connect to the Mochi server, which coordinates wallet signing, Monad RPC, approvals, data providers, and the optional indexer.](docs/architecture.svg)
 
 The MCP server owns tool validation, wallet resolution, integration logic, policy checks, and transaction submission. The dashboard is a separate local web application. The optional HyperIndex package is a separate event indexer; the core MCP server does not require it to start.
 
 ### Request flow at a glance
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Agent as MCP client / agent
-    participant Mochi as Mochi MCP server
-    participant Gate as Approval gate
-    participant Dashboard
-    participant Chain as Monad
-
-    User->>Agent: Ask for a wallet or chain action
-    Agent->>Mochi: Call the relevant MCP tool
-    Mochi->>Mochi: Validate inputs and resolve wallet
-    opt Tool flow supports preflight simulation
-        Mochi->>Chain: Simulate transaction
-        Chain-->>Mochi: Simulation result and estimated fee
-    end
-    Mochi->>Gate: Evaluate threshold, user policy, forced approval
-    alt Approval required
-        Gate->>Dashboard: Create approval request
-        Dashboard-->>User: Show action details
-        User->>Dashboard: Approve or reject
-        Dashboard-->>Gate: Decision
-    else Eligible for configured automatic approval
-        Gate-->>Mochi: Approved by policy
-    end
-    alt Approved
-        Mochi->>Chain: Submit transaction through configured signer
-        Chain-->>Mochi: Receipt
-        Mochi->>Mochi: Append audit entry
-        Mochi-->>Agent: Result, summary, and explorer link
-    else Rejected, unavailable, or timed out
-        Mochi-->>Agent: No transaction submitted
-    end
-```
+![Mochi transaction flow: validate and prepare an action, evaluate policy, request human approval when required, submit approved transactions, and fail closed on rejection or timeout.](docs/approval-flow.svg)
 
 Simulation is implemented for selected flows; it is **not** a universal precondition for every state-changing tool. See [Known limits](#known-limits).
 

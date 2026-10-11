@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">Mochi transaction and approval flow</title>
+  <desc id="desc">A user requests an action through an MCP client. Mochi validates it, resolves the wallet, and may simulate it. The approval policy decides whether to auto-approve or ask the user through the dashboard. Approved actions are submitted to Monad, recorded in the audit log, and returned to the agent. Rejected, unavailable, or timed-out approvals do not submit the transaction.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#8d75ff"/></marker>
+    <marker id="arrow-muted" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L10,5 L0,10 z" fill="#8490a7"/></marker>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #f4f2ff; }
+      .title { font-size: 28px; font-weight: 700; }
+      .subtitle { font-size: 14px; fill: #aeb4c6; }
+      .node { fill: #171923; stroke: #51458c; stroke-width: 1.5; }
+      .mochi { fill: #211b38; stroke: #9a83ff; stroke-width: 2; }
+      .human { fill: #182329; stroke: #53b8a1; stroke-width: 1.6; }
+      .success { fill: #142822; stroke: #53b88b; stroke-width: 1.6; }
+      .stop { fill: #2a1d22; stroke: #d17b83; stroke-width: 1.5; }
+      .label { font-size: 16px; font-weight: 650; }
+      .detail { font-size: 12px; fill: #b4bbcc; }
+      .edge { fill: none; stroke: #8d75ff; stroke-width: 2; marker-end: url(#arrow); }
+      .edge-muted { fill: none; stroke: #8490a7; stroke-width: 1.7; marker-end: url(#arrow-muted); }
+      .edge-human { fill: none; stroke: #53b8a1; stroke-width: 1.8; marker-end: url(#arrow-muted); }
+      .edge-label { font-size: 11px; fill: #c6c0e7; }
+    </style>
+  </defs>
+  <rect width="1200" height="700" rx="18" fill="#10121a"/>
+  <text x="48" y="54" class="title">Transaction and approval flow</text>
+  <text x="48" y="80" class="subtitle">The user remains in control when policy requires a decision</text>
+
+  <rect x="48" y="132" width="250" height="88" rx="13" class="node"/>
+  <text x="72" y="169" class="label">1 · User request</text>
+  <text x="72" y="194" class="detail">Intent arrives through an MCP client</text>
+
+  <rect x="350" y="132" width="335" height="88" rx="13" class="mochi"/>
+  <text x="374" y="169" class="label">2 · Validate and prepare</text>
+  <text x="374" y="194" class="detail">Check inputs and resolve the wallet</text>
+
+  <rect x="737" y="132" width="415" height="88" rx="13" class="node"/>
+  <text x="761" y="169" class="label">3 · Optional preflight simulation</text>
+  <text x="761" y="194" class="detail">Only for tool flows that implement simulation</text>
+
+  <path d="M298 176 H350" class="edge"/>
+  <path d="M685 176 H737" class="edge"/>
+
+  <path d="M944 220 V277" class="edge"/>
+  <polygon points="944,277 1082,338 944,399 806,338" fill="#1a1b28" stroke="#9a83ff" stroke-width="2"/>
+  <text x="944" y="330" text-anchor="middle" class="label">4 · Policy check</text>
+  <text x="944" y="353" text-anchor="middle" class="detail">Threshold · user policy</text>
+  <text x="944" y="371" text-anchor="middle" class="detail">forced approval</text>
+
+  <path d="M806 338 H636 V432" class="edge"/>
+  <text x="681" y="326" class="edge-label">Human decision required</text>
+  <rect x="430" y="432" width="405" height="100" rx="14" class="human"/>
+  <text x="456" y="470" class="label">5 · Mochi dashboard</text>
+  <text x="456" y="496" class="detail">Shows action details; user approves or rejects</text>
+  <path d="M636 432 V399" class="edge-human"/>
+  <path d="M430 482 H350 V338 H806" class="edge-human"/>
+  <text x="357" y="470" class="edge-label">Decision returns to Mochi</text>
+
+  <path d="M944 399 V454 H920" class="edge"/>
+  <text x="958" y="425" class="edge-label">Approved by policy</text>
+  <rect x="920" y="454" width="232" height="78" rx="13" class="success"/>
+  <text x="944" y="486" class="label">6 · Submit to Monad</text>
+  <text x="944" y="510" class="detail">Configured signer sends transaction</text>
+
+  <path d="M835 482 H920" class="edge"/>
+  <text x="850" y="470" class="edge-label">Approved</text>
+
+  <rect x="48" y="584" width="405" height="72" rx="13" class="success"/>
+  <text x="72" y="614" class="label">7 · Receipt and audit entry</text>
+  <text x="72" y="638" class="detail">Return result, summary, and explorer link</text>
+  <path d="M1036 532 V620 H453" class="edge-muted"/>
+
+  <rect x="737" y="584" width="415" height="72" rx="13" class="stop"/>
+  <text x="761" y="614" class="label">Rejected, unavailable, or timed out</text>
+  <text x="761" y="638" class="detail">Fail closed: Mochi does not submit the transaction</text>
+  <path d="M430 532 V556 H737 V620" class="edge-muted"/>
+  <text x="500" y="550" class="edge-label">Rejected or approval service fails</text>
+</svg>
