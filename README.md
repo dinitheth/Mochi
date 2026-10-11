@@ -26,10 +26,10 @@ Mochi is built around a practical delegation boundary: the agent can gather info
 
 ## What Mochi includes
 
-- **MCP server:** 43 standard tools for wallets, transactions, contracts, NFTs, DeFi, lending, contacts, settings, and chain data, plus two MCP Apps render tools for Mochi Market and Mochi Auctions.
+- **MCP server:** 44 standard tools for wallets, transactions, contracts, NFTs, DeFi, lending, contacts, settings, and chain data, plus two MCP Apps render tools for Mochi Market and Mochi Auctions.
 - **Wallet support:** Privy-managed Ethereum wallets, a local development signer, and read-only wallet records.
 - **Dashboard:** password sign-in, wallet and network views, transaction activity, NFT market and auction pages, and a human approval queue.
-- **Monad integrations:** Zerion portfolio and pricing, 0x Swap API, OpenSea Monad listings and supported purchases, and a Nansen/Envio market brief.
+- **Monad integrations:** Zerion portfolio and pricing, 0x Swap API, OpenSea Monad listings and supported purchases, a Nansen/Envio market brief, and a read-only Mission Planner for token research and indicative quotes.
 - **Demo contracts:** Solidity examples for fungible tokens, a small AMM, fixed-price NFT sales, auctions, offers and a lending pool.
 - **Optional indexer:** Envio HyperIndex event handlers for the demo contracts on Monad testnet.
 
@@ -111,6 +111,7 @@ All tools return JSON text with an `ok` result and, where appropriate, a concise
 | Tool | Capability |
 |---|---|
 | `defi_monad_market_brief` | Read Nansen’s 24-hour Monad token screen and, when configured, enrich it with recent ERC-20 Transfer counts from Envio HyperSync. Read-only. |
+| `defi_plan_monad_mission` | Discover Monad tokens or build a selected-token brief with Nansen holder flows, Envio transfer activity, wallet exposure, and an optional indicative 0x quote. Read-only; never sends a transaction. |
 | `defi_get_token_price` | Resolve a price from the configured DEX quote path or Zerion where available. |
 | `defi_swap_tokens` | On mainnet, prepare/execute a supported 0x exact-input ERC-20 swap with mandatory approval and safety checks; on testnet, use the configured demo router. |
 | `defi_faucet_mint` | Mint demo TTA/TTB tokens on testnet only. |
@@ -249,6 +250,8 @@ The HTTP transport does not add application-level authentication in this codebas
 | 0x Swap API v2 | Mainnet exact-input ERC-20 swap route and transaction data. Not a direct Uniswap/Kuru adapter. | `OX_API_KEY`; mandatory human approval on mainnet. |
 | OpenSea API v2 | Read Monad collection listings and buy supported native-MON orders. | `OPENSEA_API_KEY`; buy is restricted to the adapter’s verified flow and mandatory approval. |
 | Nansen Token Screener | 24-hour token market screen for Monad. | `NANSEN_API_KEY`. |
+| Nansen Flow Intelligence | 1-day token flow metrics by holder segment (whales, smart traders, public figures, exchanges, and others) for a selected Monad token. | `NANSEN_API_KEY`. |
+| Mission Planner | Combines Nansen, Envio, Monad RPC, optional Zerion token positions, and optional 0x quote context in one read-only MCP tool. | Existing provider keys; no new environment variables. |
 | Envio HyperSync / HyperRPC | Event-log scans and selected accelerated reads. The market brief uses HyperSync Transfer logs; chain tools may fall back among configured sources. | `HYPERSYNC_TOKEN`, `HYPERSYNC_URL`, optional `HYPER_RPC_URL`. |
 | Envio HyperIndex | Optional indexer for Mochi’s demo contracts on Monad testnet. | Separate package in `packages/indexer`; not required by the MCP server. |
 
@@ -312,6 +315,16 @@ These are illustrative client conversations. The agent should use the actual too
 > **Tool:** `defi_monad_market_brief({ "limit": 5 })`
 >
 > **Agent:** Shows the returned metrics, retrieval timestamp, per-token transfer-event counts when available, the scanned block range, and any source limitations. This is market data, not a trade recommendation.
+
+### Plan a Monad token mission
+
+> **You:** Help me research `<Monad token address>`. Check whale and smart-trader flows, my current balance, recent transfers, and what 2 WMON would quote for it. Don’t trade.
+>
+> **Agent:** Calls `defi_plan_monad_mission` with `tokenAddress`, the WMON contract address, and `sellAmount: "2"`.
+>
+> **Tool:** Returns a timestamped Nansen market/flow snapshot, Envio scan window and count, direct on-chain token balance, Zerion’s matching position if indexed, and an indicative 0x expected/minimum output and route venues. It returns no transaction calldata and submits nothing.
+>
+> **Agent:** Summarizes available sources and calls out any missing data. If you later choose to trade, the separate `defi_swap_tokens` flow requires explicit human approval and rechecks the quote before sending.
 
 ### Prepare a supported mainnet swap
 
@@ -468,6 +481,7 @@ Mochi/
 
 - The dashboard’s local marketplace and auction pages read configured contracts directly; they are not a universal index of every Monad marketplace.
 - The Envio HyperIndex configuration currently targets Monad testnet demo contracts. `defi_monad_market_brief` is a separate mainnet feature using Nansen and optional HyperSync log counts.
+- `defi_plan_monad_mission` is a read-only composition tool. Its optional 0x quote is indicative; execution remains in `defi_swap_tokens` and requires human approval.
 - The 0x adapter uses aggregator routes. It is not a direct integration with every DEX whose liquidity might appear in a route.
 - Direct Kuru, 1inch, Aave, Morpho, Euler, liquid staking, and yield-vault adapters are not included.
 - Some write tools do not run a generic preflight simulation. Read each tool’s behavior and verify target, amounts, and approval details before signing.

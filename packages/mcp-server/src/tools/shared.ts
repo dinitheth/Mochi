@@ -130,6 +130,7 @@ const TOOL_META: Record<string, ToolMeta> = {
   nft_launch_collection: { title: 'Launch NFT collection', annotations: { ...MONEY } },
   defi_get_token_price: { title: 'Get token price', annotations: { ...READONLY } },
   defi_monad_market_brief: { title: 'Mochi Monad Market Brief', annotations: { ...READONLY } },
+  defi_plan_monad_mission: { title: 'Mochi Mission Planner', annotations: { ...READONLY } },
   defi_faucet_mint: { title: 'Mint test tokens', annotations: { ...WRITE, destructiveHint: false } },
   defi_swap_tokens: { title: 'Swap tokens', annotations: { ...MONEY } },
   chain_get_network_stats: { title: 'Network stats', annotations: { ...READONLY } },

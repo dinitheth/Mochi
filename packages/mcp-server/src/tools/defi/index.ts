@@ -10,7 +10,8 @@ import { auditLog } from '../../middleware/audit-log.js';
 import { ERC20_ABI, addTool, assertAddress, formatTokenUnits, resolveWallet, textResult } from '../shared.js';
 import { simulateTx } from '../../middleware/simulate.js';
 import { getZeroExSwapQuote, ZEROEX_ALLOWANCE_HOLDER } from '../../integrations/zeroex.js';
-import { fetchMonadTokenScreen } from '../../integrations/nansen.js';
+import { fetchMonadTokenFlows, fetchMonadTokenScreen } from '../../integrations/nansen.js';
+import { fetchZerionMonadTokenPosition } from '../../integrations/zerion.js';
 import { hyperSyncLogs } from '../../config/hypersync.js';
 
 /** UniswapV2-style router ABI — also matches our MicroSwap pool on testnet. */
@@ -264,6 +265,164 @@ async function executeMainnetZeroExSwap(input: {
 }
 
 export function registerDeFiTools(server: McpServer, env: Env): void {
+  addTool(
+    server,
+    'defi_plan_monad_mission',
+    'Build a read-only Monad token mission brief from Nansen market and flow data, Envio transfers, wallet exposure, and optionally a 0x quote. Never submits a transaction; use the separate approval-gated swap tool if you decide to trade.',
+    {
+      tokenAddress: z.string().optional().describe('Optional Monad token address to inspect. Omit to receive a short Nansen market screen for choosing a token.'),
+      limit: z.number().int().min(1).max(10).default(5).describe('Number of market-screen candidates to return (1–10).'),
+      sellTokenAddress: z.string().optional().describe('Optional ERC-20 token to quote selling for the selected token. Requires tokenAddress and sellAmount; use WMON rather than native MON.'),
+      sellAmount: z.string().optional().describe('Optional exact input amount in human units, e.g. "2.5". Requires sellTokenAddress and tokenAddress.'),
+      slippageTolerance: z.number().min(0.1).max(5).default(0.5).describe('Quote slippage in percent (0.1–5); used only for an indicative 0x quote.'),
+      userId: z.string().optional().describe('Optional user/session id used to resolve the wallet for read-only exposure and quote context.'),
+    },
+    async ({ tokenAddress, limit, sellTokenAddress, sellAmount, slippageTolerance, userId }: {
+      tokenAddress?: string; limit: number; sellTokenAddress?: string; sellAmount?: string; slippageTolerance: number; userId?: string;
+    }) => {
+      try {
+        if (env.MONAD_NETWORK !== 'mainnet') throw new Error('Mission Planner is mainnet-only. Set MONAD_NETWORK=mainnet.');
+        if (tokenAddress) assertAddress(tokenAddress, 'tokenAddress');
+        if (sellTokenAddress) assertAddress(sellTokenAddress, 'sellTokenAddress');
+        if (Boolean(sellTokenAddress) !== Boolean(sellAmount)) throw new Error('Provide both sellTokenAddress and sellAmount to request a quote.');
+        if ((sellTokenAddress || sellAmount) && !tokenAddress) throw new Error('Choose tokenAddress before requesting a quote.');
+
+        const client = getPublicClient(env);
+        const chainId = await client.getChainId();
+        if (chainId !== 143) throw new Error(`Configured RPC returned chain ID ${chainId}; expected Monad mainnet (143).`);
+
+        const sourceStatus: Record<string, string> = {};
+        let marketTokens: Awaited<ReturnType<typeof fetchMonadTokenScreen>> = [];
+        try {
+          marketTokens = await fetchMonadTokenScreen(env, limit);
+          sourceStatus.nansenMarket = 'available';
+        } catch (error) {
+          sourceStatus.nansenMarket = error instanceof Error ? error.message : String(error);
+        }
+
+        let selectedToken: Record<string, unknown> | null = null;
+        let transferActivity: Record<string, unknown> | null = null;
+        let walletExposure: Record<string, unknown> | null = null;
+        let flowIntelligence: Record<string, unknown> | null = null;
+        let quoteSummary: Record<string, unknown> | null = null;
+        let walletAddress: string | null = null;
+
+        if (!tokenAddress) {
+          const addresses = marketTokens.map((token) => token.token_address);
+          if (addresses.length && env.HYPERSYNC_TOKEN && env.HYPERSYNC_URL.includes('monad') && !env.HYPERSYNC_URL.toLowerCase().includes('testnet')) {
+            try {
+              const toBlock = Number(await client.getBlockNumber());
+              const fromBlock = Math.max(0, toBlock - 2000);
+              const scan = await hyperSyncLogs(env, { address: addresses, topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'], fromBlock, toBlock });
+              if (scan) {
+                const counts: Record<string, number> = {};
+                for (const log of scan.logs) counts[log.address.toLowerCase()] = (counts[log.address.toLowerCase()] ?? 0) + 1;
+                transferActivity = { provider: 'Envio HyperSync', fromBlock, toBlock, complete: scan.nextBlock >= toBlock, counts };
+                sourceStatus.envio = 'available';
+              } else sourceStatus.envio = 'unavailable';
+            } catch (error) { sourceStatus.envio = error instanceof Error ? error.message : String(error); }
+          } else sourceStatus.envio = 'unavailable (configure Monad mainnet HyperSync URL and token)';
+        } else {
+          selectedToken = { address: tokenAddress, marketScreen: marketTokens.find((token) => token.token_address.toLowerCase() === tokenAddress.toLowerCase()) ?? null };
+          try {
+            const flow = await fetchMonadTokenFlows(env, tokenAddress);
+            flowIntelligence = { timeframe: '1d', metrics: flow.metrics, warnings: flow.warnings };
+            sourceStatus.nansenFlows = 'available';
+          } catch (error) { sourceStatus.nansenFlows = error instanceof Error ? error.message : String(error); }
+
+          if (env.HYPERSYNC_TOKEN && env.HYPERSYNC_URL.includes('monad') && !env.HYPERSYNC_URL.toLowerCase().includes('testnet')) {
+            try {
+              const toBlock = Number(await client.getBlockNumber());
+              const fromBlock = Math.max(0, toBlock - 2000);
+              const scan = await hyperSyncLogs(env, { address: tokenAddress, topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'], fromBlock, toBlock });
+              if (scan) {
+                transferActivity = { provider: 'Envio HyperSync', fromBlock, toBlock, complete: scan.nextBlock >= toBlock, transferEvents: scan.logs.length };
+                sourceStatus.envio = 'available';
+              } else sourceStatus.envio = 'unavailable';
+            } catch (error) { sourceStatus.envio = error instanceof Error ? error.message : String(error); }
+          } else sourceStatus.envio = 'unavailable (configure Monad mainnet HyperSync URL and token)';
+
+          try {
+            const wallet = await resolveWallet(env, userId);
+            walletAddress = wallet.address;
+            const address = tokenAddress as `0x${string}`;
+            const [balance, decimalsRaw, symbol] = await Promise.all([
+              client.readContract({ address, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] }) as Promise<bigint>,
+              client.readContract({ address, abi: ERC20_ABI, functionName: 'decimals' }) as Promise<number>,
+              client.readContract({ address, abi: ERC20_ABI, functionName: 'symbol' }).catch(() => address),
+            ]);
+            const decimals = Number(decimalsRaw);
+            walletExposure = { address: wallet.address, onchainBalance: formatTokenUnits(balance, decimals), symbol: String(symbol) };
+            sourceStatus.walletBalance = 'available (Monad RPC)';
+            try {
+              const position = await fetchZerionMonadTokenPosition(env, wallet.address, tokenAddress);
+              walletExposure.zerion = position;
+              sourceStatus.zerion = env.ZERION_API_KEY ? (position ? 'position found' : 'no indexed position or unavailable') : 'unconfigured';
+            } catch (error) { sourceStatus.zerion = error instanceof Error ? error.message : String(error); }
+          } catch (error) {
+            sourceStatus.walletBalance = error instanceof Error ? error.message : String(error);
+          }
+
+          if (sellTokenAddress && sellAmount && walletAddress) {
+            try {
+              const sellToken = sellTokenAddress as `0x${string}`;
+              const buyToken = tokenAddress as `0x${string}`;
+              if (sellToken.toLowerCase() === buyToken.toLowerCase()) throw new Error('Sell and buy token addresses must differ.');
+              const [sellDecimalsRaw, buyDecimalsRaw, sellSymbol, buySymbol] = await Promise.all([
+                client.readContract({ address: sellToken, abi: ERC20_ABI, functionName: 'decimals' }),
+                client.readContract({ address: buyToken, abi: ERC20_ABI, functionName: 'decimals' }),
+                client.readContract({ address: sellToken, abi: ERC20_ABI, functionName: 'symbol' }).catch(() => sellToken),
+                client.readContract({ address: buyToken, abi: ERC20_ABI, functionName: 'symbol' }).catch(() => buyToken),
+              ]);
+              const sellDecimals = Number(sellDecimalsRaw);
+              const buyDecimals = Number(buyDecimalsRaw);
+              const sellAmountRaw = parseTokenAmount(sellAmount, sellDecimals);
+              const quote = await getZeroExSwapQuote(env, {
+                sellToken, buyToken, sellAmount: sellAmountRaw,
+                taker: walletAddress as `0x${string}`,
+                slippageBps: Math.round(slippageTolerance * 100),
+              });
+              quoteSummary = {
+                provider: '0x Swap API',
+                sell: { address: sellToken, symbol: String(sellSymbol), amount: formatTokenUnits(sellAmountRaw, sellDecimals) },
+                buy: { address: buyToken, symbol: String(buySymbol), expected: formatTokenUnits(BigInt(quote.buyAmount), buyDecimals), minimum: formatTokenUnits(BigInt(quote.minBuyAmount), buyDecimals) },
+                slippageTolerancePercent: slippageTolerance,
+                routeSources: [...new Set((quote.route?.fills ?? []).map((fill) => fill.source).filter((source): source is string => Boolean(source)))],
+                liquidityAvailable: quote.liquidityAvailable,
+                transactionSubmitted: false,
+              };
+              sourceStatus.zeroExQuote = 'available';
+            } catch (error) { sourceStatus.zeroExQuote = error instanceof Error ? error.message : String(error); }
+          } else if (sellTokenAddress && sellAmount) sourceStatus.zeroExQuote = 'unavailable (initialize or select a wallet first)';
+        }
+
+        const tokens = marketTokens.map((token) => ({
+          ...token,
+          transferEventsInWindow: transferActivity && 'counts' in transferActivity
+            ? (transferActivity.counts as Record<string, number>)[token.token_address.toLowerCase()] ?? 0
+            : null,
+        }));
+        return textResult({
+          ok: true,
+          mode: tokenAddress ? 'token-mission' : 'market-discovery',
+          network: 'Monad mainnet (143)',
+          retrievedAt: new Date().toISOString(),
+          sources: sourceStatus,
+          marketScreen: { timeframe: '24h', tokens },
+          selectedToken,
+          flowIntelligence,
+          transferActivity,
+          walletExposure,
+          indicativeQuote: quoteSummary,
+          nextAction: quoteSummary ? 'Review this indicative quote. If you choose to trade, call defi_swap_tokens separately; its mainnet flow requires human approval.' : tokenAddress ? 'Review the token data. To compare a swap, provide sellTokenAddress and sellAmount; no trade will be sent by this planner.' : 'Choose a tokenAddress from the screen to inspect its holder flows, wallet exposure, and recent transfers.',
+          note: 'This is research context, not a recommendation. Nansen and Zerion may not cover every token. HyperSync transfer counts cover at most 2,000 recent blocks. 0x quote data is indicative and this tool never returns executable calldata or submits transactions.',
+        });
+      } catch (err) {
+        return textResult({ ok: false, error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+  );
+
   addTool(
     server,
     'defi_monad_market_brief',
