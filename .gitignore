@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.tools/
+.next/
+out/
+build/
+cache/
+*.local
+*.tsbuildinfo
+.env
+.env*.local
+packages/dashboard/.next/
+packages/mcp-server/dist/
+# Local user state and logs. These may contain wallet mappings, contacts,
+# per-user policy, launched collection records, or transaction history.
+packages/mcp-server/wallet-state.json
+packages/mcp-server/audit-log.jsonl
+packages/mcp-server/policy.json
+packages/mcp-server/contacts.json
+packages/mcp-server/collections.json
+packages/contracts/out/
+packages/contracts/cache/
+dash-out.log
+dash-err.log
+.DS_Store

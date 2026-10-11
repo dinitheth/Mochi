@@ -1,0 +1,28 @@
+{
+  "network": "testnet",
+  "chainId": 10143,
+  "deployer": "0x42591b7d70C3aDF2eB0F48A2564A5A9AfD04214d",
+  "contracts": {
+    "tokenA": {
+      "name": "TestTokenA",
+      "symbol": "TTA",
+      "decimals": 18,
+      "address": "0x1A366BBf1635D9bE4640afa24Eb10755cE684C20",
+      "deployTx": "0xd6d99afbcc60bc41c63aedd51ac91b142ecf3baa88686e368fd9ef33992b8af9"
+    },
+    "tokenB": {
+      "name": "TestTokenB",
+      "symbol": "TTB",
+      "decimals": 18,
+      "address": "0x27827700be5102192e6ccbd1d202f7c8508a6c47"
+    },
+    "pool": {
+      "name": "MicroSwap",
+      "address": "0x32a7e7fd328dc09149fc495921dc43ae97c39f6f",
+      "deployTx": "0x793fb763215624a04fcec19c7df7b24dbe4a5815aa92e84bd1c5c47961d84f84",
+      "seedTx": "0xa78f7d439b7083926cd6440f092c0187f268b3658f338b96424f010cf1ad61e3",
+      "reserves": "50 TTA / 50 TTB"
+    }
+  },
+  "explorerBase": "https://testnet.monadscan.com"
+}

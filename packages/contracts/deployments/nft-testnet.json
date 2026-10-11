@@ -1,0 +1,36 @@
+{
+  "network": "testnet",
+  "chainId": 10143,
+  "deployer": "0x42591b7d70C3aDF2eB0F48A2564A5A9AfD04214d",
+  "contracts": {
+    "mockNft": {
+      "name": "MonadMCP Demo Punks",
+      "symbol": "MDP",
+      "address": "0x3440af240213610a945339111567ddedd55384b0"
+    },
+    "microMarket": {
+      "name": "MicroMarket",
+      "address": "0xb2162b9f72a8a33a2c8e7f4c5a00c6e5316907c4"
+    },
+    "monadMCPMarket": {
+      "name": "MonadMCPMarket",
+      "address": "0x332059A65Aa2A88405BC214A9D1243f4D23bA8c7",
+      "features": ["fixed-price", "offers", "royalties-EIP2981"]
+    },
+    "auctionHouse": {
+      "name": "AuctionHouse",
+      "address": "0x1a77918b88E398F77D78EDae870d4406C66eb0B2"
+    }
+  },
+  "listings": [
+    { "tokenId": "1", "priceMON": "0.5", "status": "sold" },
+    { "tokenId": "2", "priceMON": "1", "status": "listed" },
+    { "tokenId": "3", "priceMON": "2", "status": "listed" }
+  ],
+  "auctions": [
+    { "auctionId": "1", "tokenId": "4", "reserveMON": "0.01", "status": "settled-no-bids" },
+    { "auctionId": "2", "tokenId": "4", "reserveMON": "0.01", "winner": "0x216f5DC94FE3d9283C9744457eCA250aa7F11047", "winningBidMON": "0.02", "status": "settled" },
+    { "auctionId": "3", "tokenId": "5", "reserveMON": "0.5", "durationH": 24, "status": "live" }
+  ],
+  "explorerBase": "https://testnet.monadscan.com"
+}

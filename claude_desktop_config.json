@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mochi": {
+      "command": "node",
+      "args": ["<ABSOLUTE_PATH_TO_MOCHI>/packages/mcp-server/dist/index.js"]
+    }
+  }
+}

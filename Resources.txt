@@ -1,0 +1,608 @@
+# Metropolis Hackathon Resources
+
+Source: https://hackathon.monad.xyz/resources
+
+Docs, templates, SDKs, and ecosystem guides to help you ship on Monad. Resources marked (Monad Foundation) are published by the Monad Foundation. Others come from independent ecosystem teams.
+
+## Sponsor perks
+
+Included with Metropolis. One voucher per team for each resource.
+
+- **QuickNode Build Plan** (Quicknode): Three months free. Value: Approx. $147. Product: <https://www.quicknode.com/>. Claim: <https://www.notion.so/quicknode/Quicknode-Credits-for-Metropolis-Hackers-3cd15a82e84c8093b33af5fee0452ca9>.
+- **Tenderly Pro tier** (Tenderly): Debug, simulate, and monitor. Value: Approx. $7,200. Product: <https://tenderly.co/>. Claim: <https://www.notion.so/monad-foundation/Tenderly-Access-for-Metropolis-participants-3ce6367594f280539f27d268d05431cd>.
+- **Zerion API Builder tier** (Zerion): One free month for your team. Value: Approx. $149. Product: <https://zerion.io/api/>. Claim: <https://zerion.notion.site/Free-Zerion-API-Builder-Plan-3cead18255da810aa409ebdcceb05ed3>.
+
+## Monad documentation
+
+Start here. See what differs from Ethereum, how gas works, and how to ship your first contract.
+
+### Developer essentials
+
+- [Differences from Ethereum](https://docs.monad.xyz/developer-essentials/differences): What changes when you deploy on Monad. (Monad Foundation)
+- [Developer essentials summary](https://docs.monad.xyz/developer-essentials/summary): The whole essentials track on one page. (Monad Foundation)
+- [Gas pricing](https://docs.monad.xyz/developer-essentials/gas-pricing): How gas is priced and charged. (Monad Foundation)
+- [Opcode pricing](https://docs.monad.xyz/developer-essentials/opcode-pricing): Per-opcode cost table. (Monad Foundation)
+- [Precompiles](https://docs.monad.xyz/developer-essentials/precompiles): Supported precompiled contracts. (Monad Foundation)
+- [Reserve balance](https://docs.monad.xyz/developer-essentials/reserve-balance): Balance reservation under parallel execution. (Monad Foundation)
+- [EIP-7702](https://docs.monad.xyz/developer-essentials/eip-7702): Smart accounts from EOAs. (Monad Foundation)
+- [Staking overview](https://docs.monad.xyz/reference/staking/overview): Validator staking reference. (Monad Foundation)
+- [Tooling and infra](https://docs.monad.xyz/tooling-and-infra): RPCs, indexers, oracles, and more. (Monad Foundation)
+
+### Guides
+
+- [Deploy a smart contract](https://docs.monad.xyz/guides/deploy-smart-contract/index): Foundry, Hardhat, Remix. Ship in minutes. (Monad Foundation)
+- [Verify a smart contract](https://docs.monad.xyz/guides/verify-smart-contract/index): Source verification on explorers. (Monad Foundation)
+- [Indexers](https://docs.monad.xyz/guides/indexers/index): Query chain data at Monad speed. (Monad Foundation)
+- [x402](https://docs.monad.xyz/guides/x402#what-is-x402): HTTP-native payments for agents and APIs. (Monad Foundation)
+- [ERC-8004](https://docs.monad.xyz/guides/erc-8004): Trustless agent identity and reputation. (Monad Foundation)
+- [MERA](https://docs.monad.xyz/guides/mera): Monad execution and runtime architecture guide. (Monad Foundation)
+
+## Starter templates
+
+Clone a starter and ship. Farcaster miniapps, Next.js PWAs, and React Native apps.
+
+### Farcaster miniapp
+
+- [Overview](https://docs.monad.xyz/templates/farcaster-miniapp) (Monad Foundation)
+- [Getting started](https://docs.monad.xyz/templates/farcaster-miniapp/getting-started) (Monad Foundation)
+- [Generating custom OG images](https://docs.monad.xyz/templates/farcaster-miniapp/generating-custom-og-images) (Monad Foundation)
+- [Haptics](https://docs.monad.xyz/templates/farcaster-miniapp/haptics) (Monad Foundation)
+- [Sending notifications](https://docs.monad.xyz/templates/farcaster-miniapp/sending-notifications) (Monad Foundation)
+- [Publishing the miniapp](https://docs.monad.xyz/templates/farcaster-miniapp/publishing-miniapp) (Monad Foundation)
+
+### Next.js · PWA
+
+- [Privy embedded wallet](https://docs.monad.xyz/templates/next-serwist-privy-embedded-wallet) (Monad Foundation)
+- [Privy smart wallet](https://docs.monad.xyz/templates/next-serwist-privy-smart-wallet) (Monad Foundation)
+- [0x + Privy embedded wallet](https://docs.monad.xyz/templates/next-serwist-0x-privy-embedded-wallet) (Monad Foundation)
+- [thirdweb](https://docs.monad.xyz/templates/next-serwist-thirdweb) (Monad Foundation)
+
+### React Native
+
+- [Privy embedded wallet](https://docs.monad.xyz/templates/react-native-privy-embedded-wallet) (Monad Foundation)
+- [Privy + Pimlico sponsored transactions](https://docs.monad.xyz/templates/react-native-privy-pimlico-sponsored-transactions) (Monad Foundation)
+- [thirdweb embedded wallet](https://docs.monad.xyz/templates/react-native-thirdweb-embedded-wallet) (Monad Foundation)
+
+## Build with protocol SDKs
+
+Plug and play kits from ecosystem protocols. They work with the tools you use.
+
+- [Aave v3 React kit](https://aave.com/docs/aave-v3/getting-started/react): Hooks and components for building on Aave v3.
+- [Morpho SDKs](https://docs.morpho.org/developers/sdks/get-started/): TypeScript SDKs for vaults and markets.
+- [Euler SDK](https://docs.euler.finance/developers/sdk): Programmatic access to EVK vaults and swaps.
+- [Curvance SDK](https://docs.curvance.com/app/developer-docs/sdk): Developer SDK for the Curvance protocol.
+- [Perpl SDK](https://docs.perpl.xyz/resources/for-developers/sdk): Build on the Perpl perpetuals engine.
+- [Smart Wallets SDK](https://www.alchemy.com/docs/wallets/quickstart): Wallet APIs with bundler, gas sponsorship, and ERC-20 gas payments on Monad mainnet.
+- [Alchemy CLI](https://www.alchemy.com/docs/alchemy-cli): One binary for RPC, wallets, and webhooks. Agent-ready with --json.
+- [Blend SDKs](https://docs.blend.money/build/sdk/overview): Frontend and server TypeScript SDKs for deposits, withdrawals, and yield accounts.
+- [Zerion CLI](https://developers.zerion.io/build-with-ai/zerion-cli): Analyze wallets, sign, swap, and send on Monad from the command line. JSON output, agent-ready.
+
+## MCP servers and skills
+
+Connect an agent to Monad and the ecosystem. Model Context Protocol servers and agent skills.
+
+### Alchemy
+
+- [Alchemy MCP Server](https://www.alchemy.com/docs/alchemy-mcp-server): Hosted MCP server. Live chain data as tool calls, no API key required.
+- [Alchemy Agent Skills](https://www.alchemy.com/docs/alchemy-agent-skills): Teach a coding agent every Alchemy API with one install.
+- [Alchemy agent auth and payment](https://www.alchemy.com/docs/alchemy-for-agents): Wallet-based auth for agents. Pay for compute in USDC via x402.
+
+### Envio
+
+- [Envio indexer skills](https://docs.envio.dev/blog/ai-agents-acting-onchain-indexer): HyperIndex ships 14 agent skills. Prompt-to-production indexers on Monad.
+
+### Uniswap
+
+- [Uniswap AI Skills](https://developers.uniswap.org/docs/uniswap-ai/skills): Agent skills for trading and liquidity on Uniswap.
+
+### Morpho
+
+- [Morpho Agents](https://docs.morpho.org/developers/agents/get-started/): Agent toolkit for automated onchain strategies.
+
+### Zerion
+
+- [Zerion Agent Skills](https://developers.zerion.io/build-with-ai/zerion-cli#skills): Six skills for wallet analysis, trading, and signing on Monad. Installs into any coding agent.
+
+## Idea-specific resources
+
+Curated links for each project idea. Read them beside the track you build for.
+
+### Onchain Finance & Trading
+
+#### SLA Insurance & Performance Bonds
+
+Underwriting compute delivery with onchain slashing.
+
+- [Chainlink: What Is Slashing?](https://chain.link/article/slashing): Node operators back onchain SLAs with staked LINK slashed for missed performance obligations — the underwriting primitive, in production.
+- [Aethir staking docs](https://docs.aethir.com/aethir-network/the-container/staking-and-rewards): Node operators stake ATH before contributing resources; deviating from quality standards risks slashing — DePIN-native SLA enforcement.
+- [Chainscore: On-Chain SLAs](https://www.chainscorelabs.com/en/blog/depin-building-physical-infra-on-chain/network-performance-and-qos/the-future-of-network-slas-from-paper-promises-to-on-chain-guarantees): SLAs enforced via slashing, not lawsuits, as the settlement layer for decentralized infrastructure, with $15B+ in restaked capital securing performance promises.
+
+#### Compute Spot Exchange
+
+CLOB for standardized compute contracts. Not on Monad today — no true onchain compute CLOB exists yet; pair with Kuru/Clober infra from the trading track to build one.
+
+- [Compute Exchange](https://compute.exchange/resources/compute-exchange-building-the-foundation-for-gpu-markets): Spot market with standardized contracts, Silicon Data pricing benchmarks, and DRW market-making — explicitly modeled on commodities markets.
+- [David Levy: The Compute Exchange Is (Already) Open](https://dslevy.substack.com/p/the-compute-exchange-is-already-open): Compute Exchange facilitated $1B+ in compute supply via spot auctions; SF Compute raised $40M building the "Airbnb of GPU capacity".
+- [CME x Silicon Data compute futures](https://www.cmegroup.com/media-room/press-releases/2026/8/11/cme_group_and_silicondatatolaunchcomputefuturesonoctober5tounloc.html): Two Compute futures contracts launching October 5, 2026 — TradFi validation of contract standardization.
+- [SF Compute](https://sfcompute.com/): Contracts from one node/one hour to thousands of nodes for years, with resale of idle capacity via API/CLI.
+- [Latent Space: SF Compute interview](https://www.latent.space/p/sfcompute): Founder interview on building the underlying spot market and index price for GPU financialization.
+
+#### Social & Copy-Trading Interfaces
+
+Social or copy-trading interfaces. No dominant copy-trading protocol exists on Monad yet — an open lane.
+
+- [Dusted](https://dusted.app): Wallet-native social platform on Monad: scans holdings, drops you into token-specific chats, supports in-app swaps and tipping.
+- [blocmates: Killer Apps — Monad vs. MegaETH](https://www.blocmates.com/articles/killer-apps-monad-vs-megaeth): Best blog-level survey of Monad's consumer/social app layer (Kizzy, Dusted, RBS).
+- [4Pillars: Must-Watch dApps After Monad Mainnet](https://research.4pillars.io/en/research/must-watch-dapps-after-monad-mainnet-launch): Research blog for tracking where social and trading apps are heading on Monad.
+
+#### Parametric Insurance with Instant Settlement
+
+Triggers automatically on onchain-verifiable events. No claims process, no adjuster, instant settlement.
+
+- [Etherisc GIF](https://etherisc.com): Product templates and insurance license-as-a-service. The FlightDelay architecture with multi-provider Chainlink feeds is the reference design.
+- [FlightDelay architecture](https://iireporter.com/etherisc-launches-blockchain-backed-parametric-flight-delay-insurance/): Multiple premium data providers and decentralized nodes so no single oracle failure breaks claims.
+- [Nexus Mutual](https://nexusmutual.io): Staking-priced cover. ~$190M pooled, $18M+ claims paid since inception.
+- [Neptune Mutual](https://neptunemutual.com): Embeddable parametric cover SDK.
+- [Blockchain insurance post-mortem](https://plisio.net/blog/blockchain-insurance): B3i, the biggest industry consortium, went insolvent in 2022. The unsolved question regulators keep asking: who is liable when the oracle sends wrong data? Have an answer — dispute window, fallback oracle, or hybrid manual review.
+
+#### Compute Structured Products
+
+Vaults routing LP capital into compute-backed strategies. Compute-fi lives off-Monad today; Strata is the Monad-native vault reference.
+
+- [GAIB (sAID vaults)](https://gaib.ai/): Stake AID to mint a yield-bearing receipt token accruing returns from AI compute financing plus Treasury yield — closest live thing to this idea.
+- [USD.AI / sUSDai](https://iq.wiki/wiki/usdai): ERC-4626 vault token representing a share of GPU-backed lending positions; secured a $100M debt facility from Bullish.
+- [Strata (on Monad)](https://app.monad.xyz/): Structured yield products engineered for tailored risk-reward, newly launched on Monad — vault architecture reference that lives on the chain. (Monad Foundation)
+- [Dave Friedman: Compute Derivatives Market Primer](https://davefriedman.substack.com/p/compute-derivatives-market-primer): Index methodology, basis risk, and hedging with power/datacenter/chip exposure — the risk framework any compute vault needs.
+
+#### Tokenized Compute Yield
+
+Fractionalized GPU fleets as yield-bearing tokens. Live examples are on BNB Chain, Plume, and Ethereum — not Monad.
+
+- [GAIB x Aethir GPU tokenization pilot](https://news.bitcoin.com/gaib-and-aethir-announce-success-of-first-gpu-tokenization-pilot-program-on-bnb-chain/): First Web3 project to tokenize GPU assets and revenue streams; sold out $100K in 10 minutes on BNB Chain.
+- [Aethir: Tokenized GPU Compute](https://aethir.com/blog-posts/tokenized-gpu-compute-ath-as-liquid-ai-infrastructure): Liquid, yield-bearing GPU infrastructure and RWA partnerships with GAIB and Plume, from the operator side.
+- [GAIB on Token Terminal](https://tokenterminal.com/explorer/projects/gaib/about): Clean protocol summary and metrics for the AID/sAID model.
+- [Could Compute Become a Commodity?](https://formvfunction.substack.com/p/could-compute-become-a-commodity): Essay on standardization, arbitrage, and why liquidity stays fragmented across current models — strategic framing for fractionalization.
+
+#### Cashflow-Backed Credit
+
+Tokenized recurring income streams (salary, staking yield, subscription revenue) as collateral for undercollateralized credit. Underwriting cashflow, not assets.
+
+- [Huma Finance (PayFi)](https://crypto-economy.com/huma-finance/): Undercollateralized loans against verified real-world income streams, tokenizing income as collateral. The closest live protocol to this exact idea.
+- [3Jane (zkTLS credit)](https://review.stanfordblockchain.xyz/p/74-cryptography-research-spotlight): zkTLS-verified credit lending, a flagship zkTLS application. zkTLS is how you verify the salary or subscription stream without trusting the borrower.
+- [Goldfinch wind-down](https://www.spark.money/research/tokenized-private-credit-onchain): $100M+ originated, ~$18M in defaults, governance voted to wind down in 2026. Underwriting quality matters more than token economics; legal enforceability is the fundamental challenge.
+- [Maple's Orthogonal default](https://thisweekindefi.substack.com/p/this-week-in-defi-december-9): $36M default (a third of active loans), 80% loss in the M11 USDC pool; the borrower had misrepresented FTX exposure. Maple survived by pivoting to secured, overcollateralized positions.
+- [Curvance](https://curvance.com): Monad-native lending layer, with native USDC as the loan asset and aPriori/Kintsu sMON yield as a natively verifiable income stream to underwrite first.
+
+#### Execution-Aware Trading Interfaces
+
+Trading interfaces with real-time fills, live order books, and no pending states.
+
+- [Kuru Docs](https://docs.kuru.io/): Fully onchain CLOB DEX and smart aggregator on Monad. The canonical reference for a live-order-book interface on the chain.
+- [0x: Order books on Monad](https://0x.org/post/0x-101-order-books-on-monad): Why order books become viable on Monad and how 0x aggregates CLOB liquidity alongside AMMs from day one.
+- [kuru-terminal (GitHub)](https://github.com/monad-developers/kuru-terminal): Reference implementation for real-time indexing of Kuru orderbook events across Goldsky, Envio, Ponder, QuickNode, TheGraph — the plumbing for no-pending-state UIs.
+- [Monad for Developers](https://docs.monad.xyz/introduction/monad-for-developers): 400ms blocks, 800ms finality, full Ethereum RPC compatibility. The performance envelope your interface can assume. (Monad Foundation)
+
+#### Embedded Trading in Non-Trading Apps
+
+Embedded trading inside wallets, games, and non-trading apps.
+
+- [Monad Embedded Wallets docs](https://docs.monad.xyz/tooling-and-infra/wallet-infra/embedded-wallets): Directory of Privy, Para, Sequence, and Portal integrations for one-click auth, in-app swaps, and smart accounts on Monad. (Monad Foundation)
+- [Monad blog: 2048 — Building High Performance Games](https://blog.monad.xyz/blog/build-2048): Walkthrough of Privy embedded wallets signing rapid transactions without popup fatigue — the pattern for embedding trades in any app. (Monad Foundation)
+- [monad-developers templates (Privy + 0x Swap API)](https://github.com/monad-developers): Official starter repos combining embedded wallets with the 0x swap API — trading inside a non-trading app as a template.
+- [0x Swap API](https://0x.org/docs): Embed swaps sourced from 150+ liquidity venues directly in your app, live on Monad mainnet.
+
+#### Next-gen Launchpads for New Asset Classes
+
+A launchpad built around a newly liquid asset class or user behavior rather than another memecoin bonding curve. Launchpads aggregate communities of communities; share is won by unlocking what the incumbents aren't built for.
+
+- [Nad.fun contracts + SDKs](https://github.com/naddotfun): The Monad-native incumbent to differentiate against: fair-launch bonding curve, graduation at ~225K MON with ~80% of supply sold, then migration to an internal DEX pool. Open-source contracts plus TypeScript and Rust SDKs.
+- [Doppler protocol docs](https://docs.doppler.lol): Launchpad-as-infrastructure for EVM chains: static, multicurve, and dynamic Dutch-auction launches on Uniswap v3/v4 with a TypeScript SDK. Zora, Paragraph, and Bankr build on it - the fastest path to a custom launchpad without writing curve contracts.
+- [Virtuals Protocol capital-formation layer](https://whitepaper.virtuals.io/about-virtuals/capital-formation-layer): The canonical new-asset-class-spawns-new-launchpad case: AI agents as financeable assets, with launch classes (Genesis, Unicorn) tuned to builder maturity and every launch paired with $VIRTUAL liquidity.
+- [Zora Coins Protocol](https://docs.zora.co/coins): New user behavior, not a new curve: every post becomes a tradeable coin. Uniswap v4 hooks with a 99% sniper tax decaying over 10 seconds, fees locked as permanent pool depth, initial positions seeded via Doppler.
+- [Launchpad wars market data](https://cryptobriefing.com/pump-fun-fee-share-rebounds-50-percent/): Pump.fun's revenue share collapsed to rivals, then rebounded to ~98% within weeks on the back of buybacks. The lesson: share among undifferentiated bonding-curve launchpads is mercenary - incentives rent it, mechanics don't hold it.
+- [RWA.xyz analytics](https://app.rwa.xyz): Live map of which asset classes just became liquid onchain: $32B+ ex-stablecoins, six categories over $1B each (private credit, commodities, Treasuries, corporate bonds, non-US government debt, institutional alt funds). Pick the wedge from this list.
+- [Bonding curve mathematics](https://docs.mobula.io/almanac/bonding-curves): The math behind fair launches: constant-product virtual reserves (pump.fun) vs sqrt-price concentrated curves (Meteora DBC), with worked price-impact examples. The reference for changing price discovery to fit a different asset class.
+- [Pons launch protocol docs](https://docs.ponsfamily.com): The pump.fun of Robinhood Chain, live since July 2026: non-custodial one-transaction launches (fixed 1B supply, Uniswap V3 pool, auto-locked LP NFT), 1% trade fee with ~80% of protocol share buying back and burning PONS. Reference docs cover mechanics, graduation, contracts, and integration endpoints.
+- [Doppler contracts (source)](https://github.com/whetstoneresearch/doppler): The auction implementation itself: Uniswap v4 hook source where beforeSwap/afterSwap rebalance the bonding curve each epoch, plus multicurve initializers. Fork this if the SDK's supported-chain list (Base, Unichain, Ink, other EVM chains) doesn't cover your target.
+- [Envio HyperIndex on Monad](https://docs.envio.dev/docs/HyperIndex/monad): Gold-tier Monad indexing (chain ID 143) with HyperSync backfills up to 2000x faster than RPC. The factory-contract pattern auto-registers events from every child token a launchpad deploys - and Nad.fun already runs on it. This is the launch-feed backend.
+- [Uniswap v4 hooks template](https://github.com/uniswapfoundation/v4-template): Foundry template with worked beforeSwap/afterSwap hooks - the primitive behind Zora's decaying sniper tax and Doppler's dynamic auctions. Monad check: verify a v4 PoolManager deployment before building on hooks; if absent, curve logic lives in your own pool contract.
+- [Envio Uniswap v4 multichain indexer](https://github.com/enviodev/uniswap-v4-indexer): Open-source indexer powering v4.xyz: pools, swaps, positions, and hook events behind a GraphQL API, runnable locally with pnpm envio dev. The fastest starting point for the discovery feed, token pages, and graduation tracking.
+
+#### New Order Types via Better UI
+
+New order types and execution strategies (TWAP, grid, limit variants) surfaced through better UI.
+
+- [Paradigm: TWAMM](https://www.paradigm.xyz/2021/07/twamm): Foundational paper (Dave White, Dan Robinson, Hayden Adams) on onchain TWAP execution by splitting long-term orders into infinitely small pieces. Paradigm also led Kuru's round.
+- [Kuru SDK (npm)](https://www.npmjs.com/package/@kuru-labs/kuru-sdk): Programmatic order management, margin accounts, and WebSocket real-time execution — the substrate for grid/TWAP/limit-variant strategies on Monad.
+- [Clober (Monad App Hub)](https://app.monad.xyz/app-hub): Second CLOB protocol deployed on Monad ("Have CEX on DEX") with limit-order infrastructure — a comparison reference implementation. (Monad Foundation)
+
+#### Yield Stripping
+
+Separate the yield from the principal of any interest-bearing asset and trade each leg independently.
+
+- [Pendle: yield tokenization basics](https://docs.pendle.finance/pendle-academy/pendle-101/chapter-2-yield-tokenization-basics): Split into PT (principal) and YT (yield receivables) with a maturity; PT+YT equals the underlying. The TradFi lineage is bond stripping: PTs are zero-coupon bonds, YTs the detached coupons.
+- [Yield tokenization engineering deep dive](https://mixbytes.io/blog/yield-tokenization-protocols-how-they-re-made-pendle): Core invariants (PT = YT, SY = PT + YT) and how rebasing, exchange-rate, and activity-driven yield types need different adapters. A build-from guide.
+- [Pendle trader-side guide](https://www.coingecko.com/learn/pendle): How PT/YT trading works in practice.
+
+#### Prediction Markets for Unpriced Outcomes
+
+Prediction markets for outcomes that have no existing venue: AI model performance, content virality thresholds, cultural tipping points, emerging market indicators.
+
+- [Prediction markets guide](https://therealharpaljadeja.github.io/prediction-markets-guide/#home): How prediction markets work. Ten short visual chapters.
+- [Vitalik: From Prediction Markets to Info Finance](https://www.dlnews.com/articles/defi/vitalik-buterin-explores-info-finance-concept-for-ethereum/): The canonical argument for this idea: start from a fact you want to know, then design a market to optimally elicit it. AI-managed micro-markets make small, niche questions economically viable.
+- [UMA Optimistic Oracle explained](https://crypto.news/how-prediction-markets-resolve-uma-optimistic-oracle/): Request, bonded proposal ($750 USDC), 2h challenge window, DVM token vote if disputed. The default resolution stack for novel markets.
+- [Multi-agent AI oracle research](https://arxiv.org/pdf/2605.30802): Only ~1.5% of UMA proposals are disputed: cheap automation in the common case, expensive human arbitration in the rare case. Relevant to resolving AI-model or virality markets cheaply.
+- [The UMA whale dispute](https://www.webopedia.com/crypto/learn/polymarkets-uma-oracle-controversy/): A single holder with ~25% of voting power swung a resolution against real-world facts. The thinner the market, the cheaper it is to corrupt its oracle.
+- [Prediction-market platform survey](https://arxiv.org/pdf/2601.01706): Pricing and resolution mechanisms compared across Polymarket, Kalshi, Augur, Limitless, Truemarkets.
+- [Monad prediction-market landscape](https://www.gate.com/learn/articles/monad-ecosystem-guide-native-consumer-d-app-prediction-market/6245): The live Monad prediction-market venues compared. Study these to avoid rebuilding what exists: AI model performance and emerging-market indicators have no Monad venue yet.
+
+#### Mobile-First Trading for a Specific Segment
+
+Mobile-first, simplified trading experiences targeted at a specific user segment.
+
+- [React Native + Privy embedded wallet template](https://github.com/monad-developers/react-native-privy-embedded-wallet-template): Official Monad starter for mobile apps with embedded wallet actions built in.
+- [Kizzy (via blocmates)](https://www.blocmates.com/articles/killer-apps-monad-vs-megaeth): Mobile social-media betting app on Monad: wager on views and follower changes. Best live example of segment-specific simplified trading.
+- [Kuru Lite mode](https://kuru.io): Simple swap interface backed by order book liquidity — a model for hiding CLOB complexity from casual users.
+- [Next.js PWA + Privy template](https://docs.monad.xyz/templates/next-serwist-privy-embedded-wallet): Mobile-first PWA scaffold with push notifications on Monad. (Monad Foundation)
+
+#### Continuous Liquidity for Illiquid Assets
+
+Continuous secondary liquidity for historically illiquid assets: fractional real estate, private credit, long-tail RWAs that currently have no exit.
+
+- [Tokenize Everything, But Can You Sell It?](https://arxiv.org/pdf/2508.11651v1): The essential read: despite $25B+ tokenized, most RWA tokens show low volumes, long holding periods, and minimal secondary trading. Tokenization does not create liquidity; market structure does.
+- [RWA market map](https://medium.com/@gwrx2005/tokenization-of-real-world-assets-rwa-a-comprehensive-analysis-of-technology-stacks-platform-939d3269a32e): ~$22B onchain RWA: private credit $9.5B (Centrifuge, Maple), real estate $2.5B (RealT, Lofty). ERC-4626 vaults and oracle-delivered NAV as the standard stack. Data at rwa.xyz.
+- [RealT case study](https://webisoft.com/articles/real-world-assets-rwa-tokenization-guide): Fractional US rental homes with rent streamed in stablecoins.
+- [NFT fractionalization lesson](https://binaryx.com/blog/nfts-in-real-estate-a-new-era-of-investment-and-ownership): Speculative NFT trading lost 90%+ of volume since 2021 while property-backed tokens with real cash flow grew to ~$26B. Fractionalizing an asset with no cash flow just fractionalizes illiquidity.
+- [Kuru](https://kuru.io): Fully onchain CLOB optimized for rapid quote updates and large volumes of resting orders. Resting limit orders at near-zero cost is exactly the market structure long-tail assets need and never had.
+- [Monad ecosystem directory](https://www.monad.xyz/ecosystem): Already lists an institutional derivatives venue pioneering RWA products. Check before building to position as complementary. (Monad Foundation)
+- [RWA.xyz: Monad network data](https://app.rwa.xyz/networks/monad): Live tokenized-asset data for Monad.
+
+#### Options on Non-Traditional Underlyings
+
+Options written on social attention, creator growth trajectories, and real-world event outcomes verified by oracle.
+
+- [UMA Optimistic Oracle](https://crypto.news/how-prediction-markets-resolve-uma-optimistic-oracle/): The settlement layer for real-world event outcomes verified by oracle.
+- [Pendle Academy](https://pendle.gitbook.io/pendle-academy/pendle-101/chapter-2-yield-tokenization-basics): YT is best understood as a yield call option with no upside cap and 100% downside. The cleanest existing template for option-like exposure on a non-price underlying.
+- [Perpl and high-frequency finance on Monad](https://blog.monad.xyz/blog/monad-home-high-frequency-finance): The first perps DEX with fully onchain execution and a CLOB. The venue architecture an options protocol on Monad would copy. (Monad Foundation)
+- [friend.tech post-mortem](https://disruptdigi.com/friend-tech-the-story-of-rapid-growth-and-decline/): Fees and volumes crashed 87%/90% before shutdown. Bonding-curve keys created ceiling effects and speculative participation that blocked real community formation.
+
+### Consumer Products & Payments
+
+#### Income Share Agreements as a Consumer Product
+
+Fund a friend's course, career move, or creative project in exchange for a programmatic share of future earnings, settled automatically onstream.
+
+- [$ALEX "Human IPO"](https://www.theblock.co/post/61699/this-crypto-entrepreneur-just-sold-20000-worth-of-personal-tokens-on-ethereum): $20K of personal tokens for 15% of income over 3 years, capped at $100K, quarterly DAI dividends. The trust gap in income reporting is what onstream settlement fixes.
+- [Superfluid Distributions](https://docs.superfluid.org/docs/concepts/superfluid): One-to-many pools with continuous streaming to members.
+- [Sablier (stream-as-NFT)](https://sablier.com): Streams are transferable ERC-721s usable as collateral.
+
+#### Programmable Gifts That Unlock on Conditions
+
+"Here's $500 when you graduate", "here's your share when the company exits": financial commitments that execute automatically without anyone having to remember or chase.
+
+- [Chainlink Programmable Money](https://chain.link/article/programmable-money-mechanics): Escrow and release handled by the contract, executing only when predefined criteria are met.
+- [Chainlink Automation tutorial](https://chain.link/tutorials/trigger-smart-contract-execution): Trigger smart contract execution. Automation not confirmed live on Monad; fallback is a self-run keeper bot (see Ride or Die).
+- [CCIP + CCTP on Monad](https://docs.monad.xyz/tooling-and-infra/cross-chain): Contract addresses for cross-chain conditional release. (Monad Foundation)
+- [Circle Contracts](https://www.circle.com/blog/now-available-usdc-cctp-wallets-and-contracts-on-monad): Security-audited smart contract templates for the escrow boilerplate.
+- [Sablier Lockup](https://sablier.com): Fixed-duration streams with custom curves. A gift is a lockup with an oracle-gated cliff.
+- [Stellar conditional payments tutorial](https://dev.to/ravixalgorithm/tutorial-7-stellar-smart-contracts-conditional-payments-1le4): Lightweight alternative walkthrough of conditional payments.
+
+#### Accountability Pools (Failures Fund Successes)
+
+Groups collectively commit to a shared goal: those who fail fund the rewards of those who succeed.
+
+- [CommitPool V2 pooled-stakes design](https://hackmd.io/@spengrah/SkG1F0uU_): Design doc for pooled commitment stakes.
+- [PoolTogether contracts](https://docs.pooltogether.com): Pool accounting and prize distribution to repurpose.
+- [aPriori](https://lp.new): Monad-native yield source for the pool.
+- [Kintsu](https://kintsu.xyz): Monad liquid staking. Another yield source, alongside Morpho and Curve on Monad.
+- [Incentive-design pitfalls](https://theoutline.com/post/8392/weight-loss-wagering-healthywage-dietbet): Web2 postmortem on weight-loss wagering (HealthyWage, DietBet).
+
+#### Micro-Insurance by the Minute
+
+Cover your laptop for the next three hours, insure a specific journey, pay only for the moments of actual exposure.
+
+- [Nexus Mutual](https://nexusmutual.io): $7B+ cover underwritten, $10M+ claims paid. Staking-based pricing model. Docs at docs.nexusmutual.io.
+- [Oracles for journey/duration triggers](https://ethereum.org/developers/docs/oracles/): ethereum.org primer. Chainlink Data Streams on Monad are live from day one.
+
+#### Savings Yield Gated by Behavioral Goals
+
+Your yield rate is gated by behavioural goals you set and your social graph verifies.
+
+- [PoolTogether V5](https://docs.pooltogether.com): Permissionless ERC-4626 prize vaults with pluggable distribution and eligibility logic. Swap the random draw for goal-verified eligibility and point it at a Monad yield source.
+- [Monad yield sources](https://lp.new): aPriori, plus Kintsu and Morpho/Curve on Monad.
+- [Prize-linked savings research](https://www.sciencedirect.com/science/article/abs/pii/S0047272721001705): PLS research for the pitch evidence base.
+- [Gamified-savings mechanics survey](https://trophy.so/blog/gamify-a-savings-app): Mechanics that keep savers engaged.
+
+#### Commitment Contracts with Real Money Stakes
+
+Real money behind behavioural goals (reduce screen time, hit a step count, quit a habit), verified automatically by device-native signals, with stakes redistributed to those who follow through.
+
+- [Reclaim Protocol (zkTLS)](https://reclaimprotocol.org): Cryptographic proofs of data from any website. 1M+ verifications, 40+ verified schemas. Prove "my Screen Time was under 2h" without trusting a centralized backend.
+- [zkTLS landscape overview](https://review.stanfordblockchain.xyz/p/74-cryptography-research-spotlight): Stanford Blockchain Review compares Opacity (MPC + TEEs + slashing) vs Reclaim (proxy attestors, faster). Useful for choosing a verification stack.
+- [Primus (zkTLS + zkFHE)](https://www.shoal.gg/p/zktls-verifiable-data-composability): Unified APIs letting developers choose between MPC and proxy models.
+- [Ethereum Attestation Service](https://docs.attest.org): Free, open protocol for onchain attestations. Resolver contracts can attach payments to attestations: referee attests, stake releases. Deploys on Monad as-is.
+- [EAS contracts on GitHub](https://github.com/ethereum-attestation-service/eas-contracts): Schema registry and attestation contract source.
+- [EAS implementation guide](https://www.quicknode.com/guides/ethereum-development/smart-contracts/what-is-ethereum-attestation-service-and-how-to-use-it): QuickNode walkthrough: register a schema, attest, and use resolvers.
+- [Oracles](https://ethereum.org/developers/docs/oracles/): ethereum.org primer on getting offchain data into contracts.
+- [Strava Webhook Events API](https://developers.strava.com/docs/webhooks/): One subscription receives push events for all authorized athletes. Push beats polling for auto-verification.
+- [Strava API constraints](https://openwearables.io/blog/strava-api-developer-guide-activities-heart-rate-gps-data): Standard Tier caps at 10 connected athletes and terms have changed three times in two years. Demo with 10 or fewer test athletes, or use an aggregator.
+- [Apple Screen Time APIs](https://medium.com/@juliusbrussee/a-developers-guide-to-apple-s-screen-time-apis-familycontrols-managedsettings-deviceactivity-e660147367d7): Developer guide to FamilyControls, ManagedSettings, and DeviceActivity.
+- [HealthKit](https://developer.apple.com/documentation/healthkit): Apple framework for health and fitness data.
+- [Monad Agent Kit](https://github.com/stakeme-team/monad-agent-kit): MCP toolkit for agents to read and transact on Monad — a natural fit for the self-run keeper that verifies goals and redistributes stakes.
+- [Monad AI Blueprint](https://www.monad.xyz/announcements/introducing-monad-ai-blueprint): Monad Foundation builder program with infra credits for AI projects — the funding path for an agent-verified commitment layer. (Monad Foundation)
+
+#### Payments Embedded in Social Gestures
+
+Splitting a bill, sending a gift, tipping a creator: payments where the financial action feels like a message, not a transaction.
+
+- [Splits Protocol](https://splits.org): Audited, zero-fee splitting contracts on 13+ chains with SDK, subgraph, and docs. Non-upgradeable bytecode, deploys on Monad as-is.
+- [0xSplits on GitHub](https://github.com/0xSplits): Contracts, SDK, and subgraph source.
+- [Circle Wallets + Gas Sponsorship on Monad](https://www.circle.com/blog/now-available-usdc-cctp-wallets-and-contracts-on-monad): Embedded in-app wallets and sponsored network fees. The key to payments that feel like messages.
+- [Superfluid](https://docs.superfluid.org): Tips and gifts as open streams.
+- [Splits protocol deep-dive](https://www.solidnoob.com/blog/0xSplits): Community walkthrough of the 0xSplits architecture.
+
+#### Salary Streaming at the Individual Level
+
+Get paid every second rather than bi-weekly, with idle balances earning yield in the background until you spend them.
+
+- [Superfluid](https://docs.superfluid.org/docs/concepts/superfluid): Set a flow rate, balances update every second, all flows netted in real time, no locked capital.
+- [Sablier Flow](https://sablier.com): Open-ended recurring payments on 24+ EVM chains plus Solana.
+- [Payment streaming glossary](https://www.spark.money/glossary/payment-streaming): Streaming architecture comparison.
+- [Token streaming models](https://blog.sablier.com/overview-token-streaming-models): Sablier overview, including Superfluid’s liquidator network monitoring sender solvency.
+- [Idle-balance yield on Monad](https://lp.new): aPriori sMON, plus Kintsu and Curvance.
+- [Earned Wage Access](https://en.wikipedia.org/wiki/Earned_wage_access): The fiat analogue, as a design reference.
+
+### Social, Attention & Culture
+
+#### Algorithm Marketplace
+
+Communities publish, sell, and compete on feed ranking strategies. Creators migrate to the feeds that reward them.
+
+- [Bluesky: Algorithmic Choice](https://bsky.social/about/blog/3-30-2023-algorithmic-choice): The category-defining essay. Bluesky approaches feeds from a marketplace perspective: let a developer community bring algorithms to users, because the algorithm directs attention.
+- [ATProto Feed Generator starter kit](https://github.com/bluesky-social/feed-generator): A service hosting one or more algorithms, each identified by an at-uri, serving getFeedSkeleton requests. Chain-agnostic: the marketplace and payment layer is what you build on Monad.
+- [Bluesky custom feeds](https://bsky.social/about/blog/7-27-2023-custom-feeds): The vast majority of Bluesky feeds are built by third-party developers — proof of demand. The missing piece is the economic layer: feeds earn nothing.
+- [Feed generator build walkthrough](https://medhir.com/blog/a-more-complete-bluesky-feed-generator): Practical build with lessons learned.
+
+#### Community-Governed Recommendation Engines
+
+Social clients where the recommendation engine is trained and governed by the community it serves, not the platform hosting it.
+
+- [Bluesky composable moderation](https://blueskyweb.zendesk.com/hc/en-us/articles/19002427251981): Anyone can define and apply label sets that users subscribe to for filtering. Swap "labeler" for "community-trained ranker" and this is the idea.
+- [Decentralized social graph survey](https://medium.com/@MoveLabs_/revolutionizing-online-communication-an-overview-of-popular-decentralized-social-graph-protocols-1b93f13ed5f6): Lens vs CyberConnect vs Farcaster overview.
+- [Web3 Social landscape report](https://paragraph.com/@0xsuperscrypt/KelhwWu35z1xdlqZfNBj): 7M POAPs, 50M Galxe credentials, protocol/middleware/app stack breakdown.
+
+#### Card Rental & Lending Markets
+
+Rental and lending markets for high-value cards: competitive players access what they need without the capital outlay, and collectors earn yield on idle assets.
+
+- [ERC-4907](https://eips.ethereum.org/EIPS/eip-4907): The official standard: separates owner and user roles with automatic expiry, eliminating collateral and the second reclaim transaction. Standard Solidity, deployable on Monad.
+- [Axie scholarships / rentable NFTs](https://unicsoft.com/blog/rentable-nfts-in-gaming-erc-4907-should-we-be-excited/): Sponsors lent Axies to scholars earning $300-400/week, spawning guilds like Avocado DAO (10,000+ players, $18M Series A).
+- [Guilds as NFT market makers](https://www.theblock.co/post/161604/life-for-rent-how-a-new-nft-token-standard-could-create-the-next-generation-of-landlords): How YGG functioned as a market maker for rentable NFTs.
+
+#### Generative Art That Evolves
+
+Pieces whose visual properties, traits, or behaviour change based on onchain events, holder actions, community votes, or oracle-fed real-world data: the NFT as a living object, not a static collectible.
+
+- [Generative NFTs with Chainlink VRF](https://blog.chain.link/how-to-create-generative-art-nfts/): Kickstart tutorial for onchain generative art with verifiable randomness.
+- [Dynamic NFTs with Chainlink Functions + Vertex AI](https://medium.com/google-cloud/creating-generative-art-dynamic-nfts-with-google-cloud-vertex-ai-and-chainlink-functions-db762cd35290): Oracle-fed dynamic art walkthrough.
+- [Async Art: the pioneer](https://opensea.io/blog/articles/async-art-paving-the-way-for-programmable-dynamically-changing-art-on-the-blockchain): Master + Layer tokens, collector-controlled state changes. Minting programmable art means deploying instructions for how media renders.
+- [Async Art shutdown](https://nftnow.com/news/creator-platform-async-art-announces-shutdown/): Produced iconic works but the platform outlived its market; it had to pledge a simplified viewer just to keep works visible after closure. Render fully onchain or from immutable IPFS logic, never from a company server.
+
+#### Player-Governed TCGs
+
+Card scarcity, rule evolution, tournament structure, and prize pools governed onchain by the player community, not a publisher.
+
+- [Loot: the vision](https://www.coinbase.com/blog/loot-project-the-first-community-owned-nft-gaming-platform): Free-claimed text NFTs with contract-readable parameters meant to be the foundation of an ecosystem of games, like a deck of cards underlying thousands of games.
+- [Why did Loot fail](https://reflexivityengine.substack.com/p/why-did-loot-fail): Required reading. No parallel economies emerged: insufficient base-asset distribution, no ongoing incentive emissions, failure as a Schelling point, immature onchain gaming infra. The infra excuse no longer holds on Monad.
+- [Culture apps on Monad](https://www.bankless.com/read/culture-apps-on-monad): Legends of Elysium (fantasy card/board hybrid coming to Monad) as a partner or target; Fantasy Top as the governance-less baseline to differentiate against.
+
+#### Cross-Game Asset Interoperability
+
+A shared cultural asset layer where items from one game or collection carry provable history and value into others.
+
+- [Loot: vision and post-mortem](https://reflexivityengine.substack.com/p/why-did-loot-fail): The definitive material (see Player-Governed TCGs). The failure reasons are a design checklist.
+- [ERC-6551 token-bound accounts](https://eips.ethereum.org/EIPS/eip-6551): The provable-history primitive: turns NFTs into smart accounts. A card that owns its tournament records, past skins, and provenance as onchain state it carries between games. Standard EVM — works on Monad.
+
+#### TCG Marketplace with Onchain Order Books
+
+Real-time onchain order books: transparent price discovery, instant settlement, and no platform taking a 10-15% cut on every trade.
+
+- [Monad NFT marketplace landscape](https://learn.backpack.exchange/articles/monad-nft-marketplaces): Liquidity on new chains is thin, making price discovery volatile.
+- [Monad App Hub: Collectibles](https://app.monad.xyz/app-hub?filters=Collectibles): Live directory of collectibles apps on Monad. Check before building. (Monad Foundation)
+
+#### Early-Supporter Registries
+
+Cryptographically prove, and financially reward, fans who were there before the audience arrived.
+
+- [POAP](https://cryptonews.com/academy/what-is-a-poap/): The canonical primitive: 7.2M+ tokens minted by 41,000+ issuers, with brand case studies from Adidas and Warner Music. POAP proved proof but never built reward — badges don't pay. The financial half is the unbuilt part.
+- [POAP thesis piece](https://1stdigital.com/news-and-insights/miscellaneous/concept-proof-of-attendance-protocol-poap/): "What if you could prove you were at one of Apple's earliest off-sites before the company blew up?"
+- [Ethereum Attestation Service](https://docs.attest.org): Timestamped attestations with payment-capable resolvers: the registry mechanism. Standard EVM contracts, deployable on Monad.
+- [Continuous Clearing Auctions](https://developers.uniswap.org/docs/liquidity/liquidity-launchpad/concepts/cca): Auction mechanism built to reward early participation; every bid is a timestamped onchain record of being early. Caveat: not yet officially deployed on Monad — the factory is permissionlessly deployable.
+- [CCA Contracts](https://github.com/Uniswap/continuous-clearing-auction): Auction contracts with pluggable bid-validation hooks: gate participation by fan status or prior holdings — the registry half of the idea.
+- [CCA Whitepaper](https://developers.uniswap.org/whitepaper_cca.pdf): The mechanism design for why early participation gets rewarded rather than sniped.
+
+#### Wallet-Seeded Social Graphs
+
+Bootstrap new platforms by surfacing existing onchain relationships as a social layer.
+
+- [Social graph protocol survey](https://medium.com/@MoveLabs_/revolutionizing-online-communication-an-overview-of-popular-decentralized-social-graph-protocols-1b93f13ed5f6): CyberConnect (users own their identity and network, composable social data layer) and Lens (graph-as-NFTs) compared.
+- [Culture apps on Monad](https://www.bankless.com/read/culture-apps-on-monad): Monad mainnet wallet and marketplace activity (Magic Eden, OpenSea planning support) generates exactly the co-holding and co-trading signals a Monad-native social layer would surface. No one has built the indexer yet.
+
+#### Style as an Ownable Asset
+
+Capture a visual aesthetic or artistic identity as an NFT that can be licensed and applied to existing collections, generating derivative works with onchain attribution and automated revenue splits back to the style's creator.
+
+- [Story Protocol docs](https://docs.story.foundation): The purpose-built stack: IP Assets as NFTs with a Programmable IP License defining remix rights, royalty splits, and commercial permissions enforced by smart contracts.
+- [Story Protocol overview](https://oakresearch.io/en/reports/protocols/story-protocol-ip-comprehensive-presentation-blockchain-intellectual-property): The hybrid onchain/offchain PIL links contract terms to real-world legal enforceability under the Berne Convention.
+- [0xSplits](https://splits.org): The audited splitter for the revenue leg. Verify Monad in their chain list; contracts are non-upgradeable and deployable regardless.
+
+#### AMMs for Long-Tail Collectibles
+
+Automated market makers designed specifically for the long-tail of collectible assets, where thinly traded cards currently have no reliable price or exit.
+
+- [sudoswap docs](https://docs.sudoswap.xyz): The direct precedent plus kickstart code: gas-efficient NFT AMM with customizable bonding curves, single- or dual-sided pools, ERC-721 and ERC-1155 support. Open-source EVM contracts — fork-and-deploy on Monad.
+- [sudoswap / NFTX critique](https://medium.com/@10xdegen/sudoswap-fractionalization-and-the-problem-of-nft-liquidity-d75061df39c7): The structural flaw: floor-pool AMMs price every NFT in a collection the same. Fatal for TCGs, where a chase card is not a bulk common. The unsolved, hackathon-worthy problem is trait-aware pricing.
+- [Uniswap v4 Developer Docs](https://developers.uniswap.org/docs): Hooks for custom curves, dynamic fees, and bespoke liquidity logic for illiquid assets. Live on Monad day one.
+- [Build a v4 Hook](https://www.quicknode.com/guides/defi/dexs/how-to-create-uniswap-v4-hooks): Create, test, and deploy your first hook with Foundry — the practical starting point for a custom collectibles AMM.
+- [Hooklist](https://github.com/Uniswap/hooklist): Public registry of v4 hook deployments, including Monad. Study prior curve and fee experiments before designing your own.
+- [DN404](https://github.com/Vectorized/dn404): Hybrid ERC-20/721 with native fractionalization — gives every card AMM liquidity, the most direct answer to "no reliable price or exit". Experimental standard: audit before production.
+
+#### Attention Futures
+
+Stake on content or creators you believe will break through before the crowd does, earn if you were right.
+
+- [Trendle](https://blog.monad.xyz/blog/perpetual-attention-markets): Perpetual attention markets live on Monad: long or short the Attention Index of a topic, aggregated from X, Reddit, and YouTube, with zkTLS-attested data (Primus) and the index computed verifiably in Brevis's zkVM. (Monad Foundation)
+- [Zora attention markets & creator coins](https://bitcoinfoundation.org/news/analysis/what-is-zora-the-creator-economy-project-taking-over-crypto-in-2026/): Every profile gets a tradable creator coin (1B supply, half vested to the creator), extended in 2026 to attention markets on narrative trends. Caveat: early trading was thin and volatile.
+- [InfoFi survey](https://cryptorank.io/insights/research/complete-guide-to-infofi-kaito-polymarket-cookie-galxe): Kaito, Polymarket, Cookie, Galxe compared. Core design warning: attention-scoring algorithms push contributors toward quantity over quality and engagement farming.
+- [Kaito's Yaps case study](https://blockeden.xyz/blog/2026/04/18/kaito-yaps-attention-economy-infofi-meritocratic-influence/): Crypto's most ambitious attention-to-earn experiment was killed by a single X API policy change; the token fell 17% in hours. Platform dependency is the #1 risk: mitigate with multi-platform oracles or zkTLS proofs of engagement data.
+- [Doppler](https://docs.doppler.lol): Price-discovery auctions for launching creator and content tokens. Live on Monad — the launch primitive for tokens worth staking attention on.
+- [Doppler Contracts](https://github.com/whetstoneresearch/doppler): Reference implementation of the Doppler Uniswap v4 hook, for building the market mechanics yourself.
+- [Doppler V4 SDK](https://docs.doppler.lol/v4-sdk/overview): TypeScript SDK for launching tokens programmatically — the integration path for an attention-market app.
+- [Nad.fun](https://nad-fun.gitbook.io/nad.fun): Monad-native launchpad pairing token launches with leveraged price prediction — the closest live analogue to this idea.
+
+### Trust, Identity & AI Infrastructure
+
+#### Expertise Licensing Marketplace
+
+Domain experts license their decision-making patterns to train specialised models, compensated per training run, not per data upload.
+
+- [Bittensor Subnet 52 (Dojo)](https://www.aicoin.com/en/article/447570): The biggest live experiment in paying for AI contributions, with Dojo specifically incentivizing data annotation.
+- [Bittensor critical analysis](https://arxiv.org/html/2507.02951v1): Academic analysis of the incentive design.
+- [Reward-distribution skew](https://sandeepchinchali.medium.com/decentralized-ai-and-bittensor-an-academics-view-b0ad811d2728): On Bittensor, whale validators earn ~$40K/day while the best-performing miner ranks 66th at ~$940/day. Token-incentive networks tend to pay capital, not contributors.
+
+#### Data Labelling Networks for Physical AI
+
+Contributors earn stablecoin rewards for annotating robotics and sensor data, with onchain micropayments making global participation practical at scale.
+
+- [Bittensor subnets](https://bittensor.ai/subnets): The direct precedent: distributed annotation where miners tag data and validators score accuracy using semantic embeddings. Steal the validator-scoring design — quality control is the whole game in labeling.
+
+#### Content Passports
+
+Every AI-generated asset carries a cryptographic certificate of origin and a tamper-evident audit trail that survives platform migration.
+
+- [C2PA / Content Credentials spec](https://spec.c2pa.org): The industry standard and build target: a cryptographically bound manifest recording origin, modifications, and AI use. Chain-agnostic and explicitly blockchain-compatible — anchoring manifests on Monad is spec-sanctioned.
+- [C2PA history and limitations](https://truescreen.io/articles/c2pa-standard-history-limitations/): Backed by 6,000+ members including Google, Meta, OpenAI, Sony, Nikon. OpenAI already embeds C2PA metadata in DALL·E 3 images.
+- [Privacy, identity, and trust in C2PA](https://worldprivacyforum.org/posts/privacy-identity-and-trust-in-c2pa/): Cautionary case: a C2PA-verified process certified a video that had been misleadingly edited. Provenance ≠ truth; credentials verify the data is untampered, not that it's true.
+- [DECORAIT](https://arxiv.org/pdf/2309.14400): Research direction: a decentralized opt-in/out registry combining C2PA with blockchain for AI-training consent.
+
+#### Onchain Skill Credentials
+
+Credential attestations for real-world skills that any application can verify without a centralised middleman.
+
+- [Decentralized Society: Finding Web3's Soul](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4105763): The Buterin/Weyl/Ohlhaver paper that formalized SBTs and the theoretical frame for the whole idea.
+- [Ethereum Attestation Service](https://docs.attest.org): Schemas + attestations + resolvers. Standard EVM contracts, deployable on Monad. More flexible than SBTs — the right kickstart.
+- [SBT adoption reality check](https://stealthcloud.ai/web3-identity/soulbound-tokens/): Fewer than 50 institutions issue onchain credentials; no major DeFi protocol uses SBT credit scoring in production. The tech was never the bottleneck — issuer buy-in is.
+
+#### Personal Data Locker
+
+Earns revenue when AI companies query your interaction history. You set the price, they pay per call.
+
+- [Vana docs](https://docs.vana.org): The closest existing system: user-controlled data portability with protocol-level access, encryption, and payment. Data stays on-device, moving only encrypted against a user-granted permission. Vana is its own L1 — architecture reference, not deployment target.
+- [Ocean Protocol compute-to-data](https://github.com/deltaDAO/Ocean-Protocol-Use-Cases): The original "query my data without taking my data" pattern: privacy-preserving monetization where data owners keep full control.
+
+#### Cross-Application AI Memory
+
+A user-owned context layer that persists across products, so your AI assistant isn't amnesiac every time you switch apps.
+
+- [Vana Personal Server](https://docs.vana.org): The closest live architecture: user-hosted, grant-gated, encrypted context. The r/datadao model shows the pooled variant.
+- [EAS for the permission layer](https://docs.attest.org): Each app's read/write access to your memory is a revocable onchain grant. Deployable on Monad.
+
+#### Mobile-Native Proof of Personhood
+
+WebAuthn/P256 proof of personhood: no invasive biometrics, no centralised issuer, verified in a single tap on existing hardware.
+
+- [Vitalik on biometric proof of personhood](https://cointelegraph.com/news/worldcoin-token-launch-sparks-response-from-vitalik-buterin): The field-defining essay, mapping the three paradigms (social-graph, general-hardware, specialized-hardware) and the risks: privacy leaks, erosion of anonymity, coercion. Worldcoin's Orb centralization is the anti-example this idea critiques.
+- [RIP-7212 (P256VERIFY precompile)](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7212.md): Drops P-256 verification from ~300,000 gas to ~3,450 — the ~100x reduction that makes passkey wallets practical. Monad check: RIP-7212 is an L2 proposal, not part of Cancun — assume NOT available and verify.
+- [Solidity P-256 verifier fallback](https://github.com/getclave/eip-7212): The getclave/Daimo verifier contract, deployable on any chain. On Monad, even the expensive Solidity-path verification is cheap in dollar terms — that's the pitch line.
+- [Passkeys + account abstraction guide](https://www.openfort.io/blog/passkeys-and-account-abstraction): Smart accounts verifying WebAuthn signatures onchain, with session keys and sponsored transactions. Pair with Circle Wallets' gas sponsorship on Monad for the true one-tap flow.
+
+## Ecosystem protocol resources
+
+Concepts, architecture, and integration guides from protocols across the ecosystem.
+
+- [EIPs For Designers](https://www.eipsfordesigners.com/): Find how each Ethereum and Monad standard affects what users see, feel, and do. Search by ID, browse by problem, or follow the user journey.
+
+### Aave
+
+- [Liquidity pool concepts](https://aave.com/docs/aave-v3/concepts/liquidity-pool)
+
+### Alchemy
+
+- [Monad API quickstart](https://www.alchemy.com/docs/reference/monad-api-quickstart)
+- [Monad API FAQ](https://www.alchemy.com/docs/reference/monad-api-faq)
+- [Add Alchemy RPC to any project](https://www.alchemy.com/docs/add-alchemy-rpc-to-any-project)
+- [Build with AI overview](https://www.alchemy.com/docs/build-with-ai)
+- [Wallets: send transactions with the SDK](https://www.alchemy.com/docs/wallets/transactions/using-sdk)
+- [Wallets: sponsor gas](https://www.alchemy.com/docs/wallets/transactions/sponsor-gas/overview)
+- [Wallets: EIP-7702 transactions](https://www.alchemy.com/docs/wallets/transactions/using-eip-7702)
+
+### Blend
+
+- [Start building](https://docs.blend.money/build/overview)
+- [Your first deposit](https://docs.blend.money/build/first-deposit)
+- [Architecture](https://docs.blend.money/architecture/overview)
+- [API reference](https://docs.blend.money/build/api/overview)
+- [Best practices](https://docs.blend.money/build/best-practices)
+
+### Curvance
+
+- [Protocol architecture](https://docs.curvance.com/app/protocol-overview/protocol-architecture)
+- [Application-specific sequencing](https://docs.curvance.com/app/protocol-overview/application-specific-sequencing)
+- [Plugin system](https://docs.curvance.com/app/protocol-overview/plugin-system)
+
+### Envio
+
+- [HyperIndex overview](https://docs.envio.dev/docs/HyperIndex/overview)
+- [HyperIndex quickstart](https://docs.envio.dev/docs/HyperIndex/quickstart)
+- [Quickstart with AI](https://docs.envio.dev/docs/HyperIndex/quickstart-with-ai)
+- [Index Monad data with Envio](https://docs.envio.dev/docs/HyperIndex/monad-testnet)
+- [HyperSync: raw data engine](https://docs.envio.dev/docs/HyperSync/overview)
+- [HyperRPC: fast read-only RPC](https://docs.envio.dev/docs/HyperRPC/overview-hyperrpc)
+- [Transfer notification bot on Monad](https://docs.monad.xyz/guides/indexers/tg-bot-using-envio)
+
+### Euler
+
+- [Interacting with EVK vaults](https://docs.euler.finance/developers/evk/interacting-with-vaults)
+- [EulerSwap](https://docs.euler.finance/developers/euler-swap)
+
+### Morpho
+
+- [Protocol concepts](https://docs.morpho.org/learn/)
+
+### Pendle
+
+- [Pendle Academy introduction](https://docs.pendle.finance/pendle-academy/Introduction)
+- [Pendle v2 introduction](https://docs.pendle.finance/pendle-v2/Introduction)
+- [Video walkthrough series](https://www.youtube.com/watch?v=oDZ3JAkcFeM&list=PLTbb0FG5e3tXcE6d53OUHhsHvzLDaEu1v)
+
+### Perpl
+
+- [For developers](https://docs.perpl.xyz/resources/for-developers)
+- [Quickstart](https://docs.perpl.xyz/resources/for-developers/quickstart)
+
+### QuickNode
+
+- [Monad quickstart](https://www.quicknode.com/docs/monad/quickstart)
+- [Monad API overview](https://www.quicknode.com/docs/monad/api-overview)
+- [Streams: real-time and historical data](https://www.quicknode.com/docs/streams)
+- [Webhooks for chain events](https://www.quicknode.com/docs/webhooks/getting-started)
+- [Monad guides](https://www.quicknode.com/guides/tags/monad)
+
+### Uniswap
+
+- [v4 protocol overview](https://developers.uniswap.org/docs/protocols/v4/overview)
+- [How Uniswap works](https://developers.uniswap.org/docs/get-started/concepts/how-uniswap-works)
+- [Deploy a permissioned pool](https://developers.uniswap.org/docs/protocols/v4/permissioned-pools/deploy-a-permissioned-pool)
+- [DualPool hooks overview](https://developers.uniswap.org/docs/protocols/v4-hooks/dualpool/overview)
+- [Uniswap v4 Developer Docs](https://developers.uniswap.org/docs): Hooks, SDKs, and custom pool logic. Live on Monad day one.
+- [Hooklist](https://github.com/Uniswap/hooklist): Public registry of v4 hook deployments, including Monad.
+- [Build a v4 Hook](https://www.quicknode.com/guides/defi/dexs/how-to-create-uniswap-v4-hooks): Create, test, and deploy your first hook with Foundry.
+- [Continuous Clearing Auctions](https://developers.uniswap.org/docs/liquidity/liquidity-launchpad/concepts/cca): Onchain price discovery that seeds v4 pools at the cleared price.
+- [CCA Contracts](https://github.com/Uniswap/continuous-clearing-auction): Auction contracts with pluggable bid-validation hooks.
+- [CCA Whitepaper](https://developers.uniswap.org/whitepaper_cca.pdf): The mechanism design behind continuous clearing.
+
+### Zerion
+
+- [Zerion CLI + Agent Skills](https://developers.zerion.io/build-with-ai/zerion-cli)
+- [Zerion API introduction](https://developers.zerion.io/introduction)
+- [zerion-ai on GitHub](https://github.com/zeriontech/zerion-ai)

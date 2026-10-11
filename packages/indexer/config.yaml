@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: monad-mcp-indexer
+description: Indexer for MonadMCP demo contracts (MicroSwap, MicroMarket, AuctionHouse, MockNFT, MockERC20) on Monad testnet
+contracts:
+  - name: MicroSwap
+    events:
+      - event: "Swap(address indexed sender, address indexed tokenIn, uint256 amountIn, uint256 amountOut, address indexed to)"
+      - event: "LiquidityAdded(address indexed provider, uint256 amount0, uint256 amount1, uint256 shares)"
+  - name: MicroMarket
+    events:
+      - event: "Listed(address indexed nft, uint256 indexed tokenId, address indexed seller, uint256 price)"
+      - event: "Sale(address indexed nft, uint256 indexed tokenId, address indexed buyer, uint256 price)"
+      - event: "Cancelled(address indexed nft, uint256 indexed tokenId)"
+  - name: AuctionHouse
+    events:
+      - event: "AuctionCreated(uint256 indexed auctionId, address indexed nft, uint256 indexed tokenId, address seller, uint256 reserve, uint64 endTime)"
+      - event: "BidPlaced(uint256 indexed auctionId, address indexed bidder, uint256 amount)"
+      - event: "AuctionSettled(uint256 indexed auctionId, address winner, uint256 amount)"
+      - event: "AuctionCancelled(uint256 indexed auctionId)"
+  - name: MockNFT
+    events:
+      - event: "Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
+  - name: MockERC20
+    events:
+      - event: "Transfer(address indexed from, address indexed to, uint256 value)"
+chains:
+  - id: 10143 # Monad testnet — HyperSync is the primary source, no rpc needed
+    start_block: 60600000
+    contracts:
+      - name: MicroSwap
+        address: "0x32a7e7fd328dc09149fc495921dc43ae97c39f6f"
+      - name: MicroMarket
+        address: "0xb2162b9f72a8a33a2c8e7f4c5a00c6e5316907c4"
+      - name: AuctionHouse
+        address: "0x1a77918b88E398F77D78EDae870d4406C66eb0B2"
+      - name: MockNFT
+        address: "0x3440af240213610a945339111567ddedd55384b0"
+      - name: MockERC20
+        address:
+          - "0x1A366BBf1635D9bE4640afa24Eb10755cE684C20"
+          - "0x27827700be5102192e6ccbd1d202f7c8508a6c47"

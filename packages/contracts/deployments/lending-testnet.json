@@ -1,0 +1,27 @@
+{
+  "network": "testnet",
+  "chainId": 10143,
+  "deployer": "0x42591b7d70C3aDF2eB0F48A2564A5A9AfD04214d",
+  "activePool": "0x88569f3B17448872A55Ee36685BcE6B006dd803A",
+  "pools": {
+    "v1": {
+      "address": "0xb1852430B31A4a49F42f3f6EcDa5fBF1Ff3F8Ca4",
+      "status": "retired-dust-lock-bug",
+      "note": "Partial repayments could zero principal without releasing collateral. Loan #1 stuck; rescued via 1-wei repay. Liquidity migrated to V2."
+    },
+    "v2-stale-build": {
+      "address": "0x9af48b3877B3eC8f45c1e3C7322654960337C19f",
+      "status": "retired-stale-bytecode",
+      "note": "Deployed from a stale forge cache without the dust fix (forge --force silently skipped). Liquidity migrated out. Never use."
+    },
+    "v2": {
+      "address": "0x88569f3B17448872A55Ee36685BcE6B006dd803A",
+      "status": "active",
+      "fix": "zero-principal loans auto-release on any repay call"
+    }
+  },
+  "floorsMON": { "MDP": "0.5", "LTST": "0.05", "NCHK": "0.05" },
+  "borrowRateAprPct": "10",
+  "maxLtvBps": 5000,
+  "explorerBase": "https://testnet.monadscan.com"
+}

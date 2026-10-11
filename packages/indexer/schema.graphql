@@ -1,0 +1,67 @@
+type Swap {
+  id: ID!
+  sender: String!
+  tokenIn: String!
+  amountIn: BigInt!
+  amountOut: String!
+  to: String!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type LiquidityAdded {
+  id: ID!
+  provider: String!
+  amount0: BigInt!
+  amount1: BigInt!
+  shares: BigInt!
+  blockNumber: BigInt!
+}
+
+type NftListed {
+  id: ID!
+  nft: String!
+  tokenId: BigInt!
+  seller: String!
+  price: BigInt!
+  active: Boolean!
+}
+
+type NftSale {
+  id: ID!
+  nft: String!
+  tokenId: BigInt!
+  buyer: String!
+  price: BigInt!
+  blockNumber: BigInt!
+}
+
+type Auction {
+  id: ID!
+  auctionId: BigInt!
+  nft: String!
+  tokenId: BigInt!
+  seller: String!
+  reserve: BigInt!
+  highestBid: BigInt!
+  highestBidder: String!
+  endTime: BigInt!
+  settled: Boolean!
+}
+
+type Bid {
+  id: ID!
+  auctionId: BigInt!
+  bidder: String!
+  amount: BigInt!
+  blockNumber: BigInt!
+}
+
+type NftTransfer {
+  id: ID!
+  nft: String!
+  from: String!
+  to: String!
+  tokenId: BigInt!
+  blockNumber: BigInt!
+}
