@@ -184,13 +184,26 @@ export function registerNFTTools(server: McpServer, env: Env): void {
             : `No NFTs from ${collectionSlug} are currently listed on Monad.`,
         };
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{
+            type: 'text' as const,
+            text: listings.length
+              ? listings.map((item) => [
+                `### ${item.name}`,
+                item.imageUrl ? `![${item.name}](${item.imageUrl})` : 'Image unavailable',
+                `Asking price: ${item.priceMON} MON`,
+                item.floorPrice != null
+                  ? `Collection floor: ${item.floorPrice} ${item.floorCurrency || 'MON'}`
+                  : 'Collection floor unavailable',
+                `[View collection on OpenSea](${item.openseaUrl})`,
+              ].join('\n')).join('\n\n')
+              : result.summary,
+          }],
           structuredContent: result,
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         await auditLog({ tool: 'nft_opensea_listings', result: 'error', error: message, params: { collectionSlug } });
-        return textResult({ ok: false, error: message });
+        return textResult({ ok: false, summary: 'I couldn’t load these OpenSea listings just now. Please try again shortly.' });
       }
     },
     {

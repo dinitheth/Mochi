@@ -14,7 +14,7 @@ describe('merchant payment operations', () => {
     const dir = await mkdtemp(join(tmpdir(), 'mochi-requests-'));
     try {
       const repo = createPaymentRepository(join(dir, 'payments.json'), join(dir, 'requests.json'));
-      const request = { userId: 'Shop', invoiceId: 'ORDER-42', merchantAddress: address, token: 'AUSD' as const, amount: '12.50', reason: 'Lunch', expiresAt: '2026-10-13T00:00:00.000Z', createdBlock: '10' };
+      const request = { userId: 'Shop', invoiceId: 'ORDER-42', merchantAddress: address, token: 'AUSD' as const, amount: '12.50', reason: 'Lunch', expiresAt: new Date(Date.now() + 60_000).toISOString(), createdBlock: '10' };
       const created = await repo.createPaymentRequest(request);
       expect(created.record).toMatchObject({ invoiceId: 'order-42', status: 'open', userId: 'shop' });
       expect((await repo.createPaymentRequest(request)).duplicate?.id).toBe(created.record?.id);

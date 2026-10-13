@@ -119,7 +119,7 @@ export async function getOpenSeaNativeBuyTransaction(
   return { to: tx.to as `0x${string}`, data: tx.data as `0x${string}`, value, quotedPriceRaw };
 }
 
-/** Read active Monad collection listings from OpenSea's documented v2 API. */
+/** Read one best native-MON listing per NFT from OpenSea's v2 API. */
 export async function listOpenSeaMonadListings(
   env: Env,
   collectionSlug: string,
@@ -129,22 +129,45 @@ export async function listOpenSeaMonadListings(
   const slug = collectionSlug.trim();
   if (!/^[a-z0-9][a-z0-9-]{0,99}$/i.test(slug)) throw new Error('collectionSlug must be a valid OpenSea collection slug.');
 
-  const url = new URL(`${API_BASE}/listings/collection/${encodeURIComponent(slug)}/all`);
-  url.searchParams.set('limit', String(limit));
-  const response = await fetch(url, {
-    headers: { 'x-api-key': env.OPENSEA_API_KEY, accept: 'application/json' },
-    signal: AbortSignal.timeout(15_000),
-  });
-  const payload = record(await response.json().catch(() => null));
-  if (!response.ok) {
-    const detail = typeof payload?.detail === 'string' ? payload.detail :
-      typeof payload?.message === 'string' ? payload.message : `HTTP ${response.status}`;
-    throw new Error(`OpenSea listings request failed: ${detail}`);
-  }
-  if (!Array.isArray(payload?.listings)) throw new Error('OpenSea returned an invalid listings response.');
+  // OpenSea sorts this endpoint from lowest price upward, but can still return
+  // several active orders for the same token. Page until we have enough unique
+  // NFTs (or a bounded number of pages), then keep the cheapest order per token.
+  const rawListings: unknown[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < 5; page++) {
+    const url = new URL(`${API_BASE}/listings/collection/${encodeURIComponent(slug)}/best`);
+    url.searchParams.set('limit', '200');
+    if (cursor) url.searchParams.set('next', cursor);
+    const response = await fetch(url, {
+      headers: { 'x-api-key': env.OPENSEA_API_KEY, accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const payload = record(await response.json().catch(() => null));
+    if (!response.ok) {
+      const detail = typeof payload?.detail === 'string' ? payload.detail :
+        typeof payload?.message === 'string' ? payload.message : `HTTP ${response.status}`;
+      throw new Error(`OpenSea listings request failed: ${detail}`);
+    }
+    if (!Array.isArray(payload?.listings)) throw new Error('OpenSea returned an invalid listings response.');
+    rawListings.push(...payload.listings);
+    cursor = typeof payload.next === 'string' && payload.next ? payload.next : null;
 
-  const out: OpenSeaListing[] = [];
-  for (const raw of payload.listings) {
+    const uniqueMonadNfts = new Set<string>();
+    for (const raw of rawListings) {
+      const listing = record(raw);
+      const asset = record(listing?.asset);
+      const current = record(record(listing?.price)?.current);
+      if (
+        listing?.chain === 'monad' && listing.status === 'ACTIVE' &&
+        typeof asset?.contract === 'string' && typeof asset.identifier === 'string' &&
+        current?.currency === 'MON' && current.decimals === 18
+      ) uniqueMonadNfts.add(`${asset.contract.toLowerCase()}:${asset.identifier}`);
+    }
+    if (uniqueMonadNfts.size >= limit || !cursor) break;
+  }
+
+  const bestByToken = new Map<string, OpenSeaListing>();
+  for (const raw of rawListings) {
     const listing = record(raw);
     if (!listing || listing.chain !== 'monad' || listing.status !== 'ACTIVE') continue;
     const asset = record(listing.asset);
@@ -154,11 +177,11 @@ export async function listOpenSeaMonadListings(
       typeof listing.order_hash !== 'string' || !/^0x[0-9a-f]{64}$/i.test(listing.order_hash) ||
       typeof asset?.contract !== 'string' || !/^0x[0-9a-f]{40}$/i.test(asset.contract) ||
       typeof asset.identifier !== 'string' || !/^\d+$/.test(asset.identifier) ||
-      typeof current?.currency !== 'string' ||
+      current?.currency !== 'MON' || current.decimals !== 18 ||
       typeof current.value !== 'string' || !/^\d+$/.test(current.value) ||
       typeof current.decimals !== 'number' || !Number.isInteger(current.decimals) || current.decimals < 0 || current.decimals > 36
     ) continue;
-    out.push({
+    const item: OpenSeaListing = {
       collectionSlug: slug,
       collectionName: slug,
       name: `NFT #${asset.identifier}`,
@@ -175,8 +198,14 @@ export async function listOpenSeaMonadListings(
         ? listing.protocol_address
         : null,
       openseaUrl: `https://opensea.io/collection/${encodeURIComponent(slug)}`,
-    });
+    };
+    const key = `${item.contractAddress.toLowerCase()}:${item.tokenId}`;
+    const previous = bestByToken.get(key);
+    if (!previous || BigInt(item.priceRaw) < BigInt(previous.priceRaw)) bestByToken.set(key, item);
   }
+  const out = [...bestByToken.values()]
+    .sort((a, b) => BigInt(a.priceRaw) < BigInt(b.priceRaw) ? -1 : BigInt(a.priceRaw) > BigInt(b.priceRaw) ? 1 : 0)
+    .slice(0, limit);
 
   // Enrich each card with OpenSea's public NFT metadata and collection stats.
   // Metadata is best-effort: listings remain useful if an item has no image or name.
@@ -193,7 +222,17 @@ export async function listOpenSeaMonadListings(
     out[i]!.floorPrice = floorPrice;
     out[i]!.floorCurrency = floorCurrency;
     const nft = record(record(metadataResponses[i])?.nft);
-    if (typeof nft?.name === 'string' && nft.name.trim()) out[i]!.name = nft.name.trim();
+    if (typeof nft?.name === 'string' && nft.name.trim()) {
+      const metadataName = nft.name.trim();
+      const tokenSuffix = metadataName.match(/^(.*?)(?:\s*#\s*\d+)\s*$/);
+      if (tokenSuffix) {
+        // OpenSea metadata may have a stale # suffix; the listing's asset ID is
+        // authoritative and is the ID required for any later purchase.
+        out[i]!.name = `${tokenSuffix[1]!.trim() || out[i]!.collectionName} #${out[i]!.tokenId}`;
+      } else {
+        out[i]!.name = `${metadataName} #${out[i]!.tokenId}`;
+      }
+    }
     const image = nft?.display_image_url ?? nft?.image_url ?? nft?.original_image_url;
     if (typeof image === 'string' && /^https?:\/\//i.test(image)) out[i]!.imageUrl = image;
     if (typeof nft?.collection === 'string' && nft.collection.trim()) out[i]!.collectionName = nft.collection.trim();
