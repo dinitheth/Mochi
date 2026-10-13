@@ -269,7 +269,9 @@ MCP_TRANSPORT=http pnpm --filter @monad-mcp/mcp-server dev
 
 Or start the built server with `MCP_TRANSPORT=http` (the server also accepts `--http`). By default, it listens on port **3002**. `GET /health` returns a health response and MCP requests use `POST /mcp`.
 
-The HTTP transport does not add application-level authentication in this codebase. Keep it on a trusted local network or place it behind an authenticated, TLS-terminating gateway before exposing it remotely.
+The public HTTP transport uses OAuth 2.1 authorization-code + PKCE. Mochi publishes protected-resource and authorization-server metadata and Dynamic Client Registration, so ChatGPT can register its own public client; end users do not need Mochi OAuth client credentials or AWS credentials. In production, Cognito provides Mochi email/password sign-up and sign-in. Each verified Cognito identity is mapped to a server-derived Mochi owner ID, so tools cannot select another user's data by supplying a different `userId`. The optional `COGNITO_LEGACY_OWNER_EMAIL` setting lets only that exact verified email continue using the existing legacy `owner` wallet and records; every other Cognito identity remains isolated under its own Cognito subject. Transaction approval and spending policy checks still apply. `MCP_API_TOKEN` is retained only for internal compatibility and is not accepted by the public `/mcp` route.
+
+For ChatGPT, add `https://mcp.getmochi.dev/mcp` as a custom MCP server and select OAuth. Keep `mochi:read` and `mochi:write` as the requested scopes. Users sign up or sign in with their own Mochi identity and approve the permissions in the consent page. To enable Google sign-in, configure `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` in Secrets Manager, register the Cognito hosted-domain callback with Google, and deploy with `EnableGoogleLogin=true`. Authorization codes, refresh-token hashes, and user wallet records are stored in `MOCHI_DATA_DIR` (EFS in the production stack).
 
 ## Network integrations
 
@@ -400,7 +402,7 @@ The server configuration is parsed in `packages/mcp-server/src/config/env.ts`. P
 |---|---|---|
 | `MONAD_NETWORK` | Select `mainnet` or `testnet`. | `testnet`. |
 | `MONAD_RPC_URL` | Monad testnet RPC URL. | `https://testnet-rpc.monad.xyz`. |
-| `MONAD_MAINNET_RPC_URL` | Monad mainnet RPC URL. | `https://rpc.monad.xyz`. |
+| `MONAD_MAINNET_RPC_URL` | Monad mainnet RPC URL (chain ID 143). Use your private QuickNode endpoint for production; keep provider credentials in a secret store. | Local fallback: `https://rpc.monad.xyz`; AWS ECS reads this from the `MONAD_MAINNET_RPC_URL` field in its Secrets Manager JSON secret. |
 | `PRIVY_APP_ID`, `PRIVY_APP_SECRET` | Privy wallet creation and managed signing. | Optional for read-only/local development; required for Privy mode. |
 | `DEV_PRIVATE_KEY` | Local development signing key. | Optional; keep in a private local env file only. |
 | `AGENT_ADDRESS` | Preconfigured address for read-only setup. | Optional. |
@@ -410,6 +412,12 @@ The server configuration is parsed in `packages/mcp-server/src/config/env.ts`. P
 | `APPROVAL_POLL_TIMEOUT_MS` | Maximum wait for an approval decision. | `300000` (5 minutes). |
 | `APPROVAL_QUORUM` | Number of distinct dashboard approvers required for gated actions. | `1`; configure enough `admin`/`approver` members in the dashboard team list. |
 | `MCP_TRANSPORT`, `MCP_HTTP_PORT` | Select stdio/HTTP and HTTP port. | `stdio`, `3002`. |
+| `MCP_API_TOKEN` | Legacy shared HTTP bearer secret. | Not accepted by the public `/mcp` endpoint; public access requires a user-bound OAuth token. |
+| `MCP_PUBLIC_URL`, `MCP_OAUTH_RESOURCE` | OAuth issuer origin and protected MCP resource URL. | Production: `https://mcp.getmochi.dev` and `https://mcp.getmochi.dev/mcp`. Both must use HTTPS and the resource must be on the issuer origin. |
+| `MCP_OAUTH_CLIENT_ID`, `MCP_OAUTH_CLIENT_SECRET` | Optional legacy pre-registered OAuth client. | New ChatGPT connections use Mochi's DCR endpoint and do not need these values. Keep any legacy values in Secrets Manager. |
+| `MCP_OAUTH_REDIRECT_URI` | Exact ChatGPT OAuth callback allowlisted by Mochi. | `https://chatgpt.com/connector_platform_oauth_redirect` when issuer identification is enabled; use the exact callback shown by the connector UI. |
+| `COGNITO_ISSUER_URL`, `COGNITO_CLIENT_ID`, `COGNITO_DOMAIN`, `COGNITO_CALLBACK_URL` | Cognito hosted login and per-person Mochi identities for email/password sign-up. | Set by the production CloudFormation stack. ChatGPT users do not need AWS credentials. |
+| `COGNITO_LEGACY_OWNER_EMAIL` | Optional verified Cognito email that inherits only the original `owner` wallet/data. | Blank by default; configured for the existing owner identity in production. |
 | `NANSEN_API_KEY` | Nansen market and collection research. | Optional. |
 | `ZERION_API_KEY` | Zerion portfolio and token data. | Optional. |
 | `OX_API_KEY` | 0x Swap API. | Optional; mainnet swap integration. |
@@ -419,9 +427,16 @@ The server configuration is parsed in `packages/mcp-server/src/config/env.ts`. P
 | `HYPER_RPC_URL` | Optional Envio HyperRPC endpoint. | Empty by default. |
 | `MICROSWAP_POOL_ADDRESS` | Override the testnet demo AMM pool. | Optional. |
 | `MOCK_NFT_ADDRESS`, `MICROMARKET_ADDRESS`, `AUCTION_HOUSE_ADDRESS`, `LENDING_POOL_ADDRESS` | Configure demo contract addresses where supported. | Use verified addresses for the selected network; sample deployments are testnet only. |
-| `DASHBOARD_PASSWORD` | Password checked at dashboard sign-in. | Set in `packages/dashboard/.env.local`. |
+| `DASHBOARD_PASSWORD` | Owner dashboard password and local legacy OAuth sign-in. | Production public MCP sign-in uses Cognito; never ask connector users for this value. |
 | `DASHBOARD_TEAM_MEMBERS` | Optional JSON array of individually authenticated dashboard members and roles. | Overrides single-password mode; passwords must be at least 12 characters. |
-| `DASHBOARD_SESSION_SECRET` | Signs dashboard session cookies. | Set a long random value in `packages/dashboard/.env.local`. |
+| `DASHBOARD_SESSION_SECRET` | Signs dashboard sessions and OAuth access tokens. | At least 32 random bytes; store in Secrets Manager. Rotating it invalidates existing OAuth access tokens and dashboard sessions. |
+| `MOCHI_DATA_DIR` | Persistent application state directory. | Production uses `/mochi-data` on EFS; per-connection OAuth clients, authorization codes, and refresh-token hashes are written there. |
+
+### Public ChatGPT connector sign-in
+
+Users add `https://mcp.getmochi.dev/mcp` as a custom MCP server and select OAuth. Mochi publishes Dynamic Client Registration so ChatGPT can register its own public PKCE client; users do not enter Mochi OAuth client credentials or AWS credentials. They sign up or sign in with their own Mochi email/password, then approve the requested read/write scopes. Each verified Cognito subject is the server-derived owner key for wallet, contacts, policies, and payment records. Tool-supplied `userId` values are overwritten from the access token, and the public endpoint does not accept the shared `MCP_API_TOKEN`.
+
+Google sign-in is optional. Create a Google OAuth web application with `https://mochi-<AWS-project-id>.auth.ap-southeast-2.amazoncognito.com/oauth2/idpresponse` as its authorized redirect URI, store `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` in the runtime Secrets Manager secret, then update the stack with `EnableGoogleLogin=true`. Cognito email/password remains available alongside Google. Google and email sign-in may create separate identities for the same email unless account linking is deliberately configured.
 
 Generate unique random values for dashboard secrets and approval credentials. Do not copy example placeholders into a deployed environment.
 
@@ -443,6 +458,7 @@ The server persists local state under `packages/mcp-server/`:
 - `policy.json` — per-user automatic approval preferences.
 - `collections.json` — locally launched collection records.
 - `audit-log.jsonl` — tool intent/result history and transaction hashes; selected sensitive fields are redacted.
+- `oauth-state.json` — short-lived authorization codes and hashed, rotating refresh-token grants; stored in the configured persistent data directory.
 
 These files are user-specific runtime data and are excluded from Git. Back them up securely if the deployment needs persistence. Do not publish the dashboard or approval endpoint without adding appropriate network access controls.
 
@@ -454,8 +470,8 @@ These files are user-specific runtime data and are excluded from Git. Back them 
 - Mainnet 0x swaps require a supported exact-input ERC-20 route, a human approval, refreshed quote checks, simulation, and receipt validation in the implemented adapter.
 - OpenSea buys are limited to the adapter’s supported Monad order flow and caller-provided price ceiling; they require approval and revalidation.
 - `contract_write` accepts a caller-supplied address, ABI, function, and arguments. It is a general-purpose write interface, not a verified-protocol allowlist. Verify contract code and calldata before using it.
-- Dashboard password sessions use signed HttpOnly cookies. MCP approval requests authenticate with the shared bearer token.
-- The HTTP MCP listener itself has no built-in authentication in this repository. Do not expose it directly to the public internet.
+- Dashboard password sessions use signed HttpOnly cookies. The internal dashboard approval webhook uses its separate `APPROVAL_API_TOKEN` credential.
+- OAuth access tokens are audience-bound to Mochi, expire after 15 minutes, and are refreshed with rotating single-use refresh tokens. Reuse of a spent refresh token revokes its refresh-token family.
 
 ## Development commands
 

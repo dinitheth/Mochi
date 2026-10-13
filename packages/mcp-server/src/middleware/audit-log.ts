@@ -8,7 +8,7 @@ export interface AuditEntry {
   userId?: string;
   intent?: string;
   params?: Record<string, unknown>;
-  result?: 'ok' | 'error' | 'approval-required' | 'rejected';
+  result?: 'ok' | 'error' | 'approval-required' | 'rejected' | 'pending';
   txHash?: string;
   error?: string;
 }

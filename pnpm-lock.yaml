@@ -60,6 +60,9 @@ importers:
       express:
         specifier: ^4.21.2
         version: 4.22.2
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4

@@ -1,0 +1,557 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Mochi MCP and dashboard on ECS Fargate with private image storage and persistent EFS state.
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Existing default VPC in the selected Region.
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two public subnets in distinct Availability Zones.
+  ImageUri:
+    Type: String
+    Description: Immutable image URI in the private Mochi ECR repository.
+    AllowedPattern: '^\d{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/[a-z0-9._/-]+:[a-zA-Z0-9._-]+$'
+  AppSecretsArn:
+    Type: String
+    Description: Secrets Manager JSON secret containing application credentials and generated passwords.
+    AllowedPattern: '^arn:aws:secretsmanager:ap-southeast-2:\d{12}:secret:.+$'
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for the Mochi domain, issued in ap-southeast-2.
+    AllowedPattern: '^arn:aws:acm:ap-southeast-2:\d{12}:certificate/[a-f0-9-]+$'
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 1
+    Description: Keep one task because Mochi's JSON-file state is single-writer.
+  EnableGoogleLogin:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable Google federation after GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET are stored in the runtime secret.
+Conditions:
+  GoogleLoginEnabled: !Equals [!Ref EnableGoogleLogin, 'true']
+Resources:
+  MochiUserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Give each public Mochi connector user an independent Cognito identity for wallet and data ownership; AWS project credentials are never needed by connector users.
+        must:
+          - Keep public email sign-up enabled and verify email addresses.
+          - Do not place a Cognito client secret in the public MCP client.
+          - Retain the pool because its user identities own persistent Mochi wallet records.
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: true
+          Mutable: true
+
+  MochiUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Provide Cognito-managed HTTPS sign-in, email/password registration, email verification, and optional Google federation without a custom-domain certificate.
+        must:
+          - Keep the domain in the selected Region.
+          - Do not expose any Cognito client secret to ChatGPT or browser clients.
+    Properties:
+      Domain: !Sub 'mochi-${AWS::AccountId}'
+      UserPoolId: !Ref MochiUserPool
+
+  MochiUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Server-side authorization-code + PKCE client used only by Mochi's identity callback to validate each human login.
+        must:
+          - Keep this a public client with no generated client secret.
+          - Allow only the exact Mochi HTTPS callback and authorization-code flow.
+          - Request only OIDC identity scopes required for stable user identity and email.
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-mcp-identity'
+      UserPoolId: !Ref MochiUserPool
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, profile]
+      CallbackURLs: [https://mcp.getmochi.dev/oauth/identity/callback]
+      SupportedIdentityProviders: !If [GoogleLoginEnabled, [COGNITO, Google], [COGNITO]]
+
+  MochiGoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: GoogleLoginEnabled
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Optional Google sign-in for public Mochi users, configured from the runtime secret rather than source or stack parameters.
+        must:
+          - Store Google OAuth credentials only in Secrets Manager.
+          - Map the verified Google email and name claims into Cognito attributes.
+    Properties:
+      UserPoolId: !Ref MochiUserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: !Sub '{{resolve:secretsmanager:${AppSecretsArn}:SecretString:GOOGLE_OAUTH_CLIENT_ID}}'
+        client_secret: !Sub '{{resolve:secretsmanager:${AppSecretsArn}:SecretString:GOOGLE_OAUTH_CLIENT_SECRET}}'
+        authorize_scopes: openid email profile
+      AttributeMapping:
+        email: email
+        name: name
+
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Metadata:
+      com.aws.cloudformation.Context: Keep application logs for operational diagnosis while limiting retention.
+    Properties:
+      LogGroupName: /mochi/production
+      RetentionInDays: 14
+
+  EcrExecutionRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context: ECS assumes this role to pull the private image, publish logs, and read only Mochi's runtime secret.
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadMochiRuntimeSecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref AppSecretsArn
+
+  AppTaskRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context: The application task role is restricted to mounting and writing through the dedicated Mochi EFS access point.
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: MochiEfsAccessPoint
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticfilesystem:ClientMount
+                  - elasticfilesystem:ClientWrite
+                Resource: !GetAtt FileSystem.Arn
+                Condition:
+                  StringEquals:
+                    elasticfilesystem:AccessPointArn: !GetAtt DataAccessPoint.Arn
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      com.aws.cloudformation.Context: Public HTTPS is the only application ingress; HTTP exists only to redirect browsers to HTTPS.
+    Properties:
+      GroupDescription: Public HTTPS ingress for Mochi ALB.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      com.aws.cloudformation.Context: Application ports are reachable only from the ALB; task egress is needed for Monad and provider APIs.
+    Properties:
+      GroupDescription: Private ingress from the Mochi ALB only.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3001
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 3002
+          ToPort: 3002
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  EfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      com.aws.cloudformation.Context: NFS is accepted only from Mochi tasks so the retained state volume is not exposed to other VPC workloads.
+    Properties:
+      GroupDescription: NFS access from Mochi ECS tasks only.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref TaskSecurityGroup
+
+  FileSystem:
+    Type: AWS::EFS::FileSystem
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context: Holds Mochi contacts, policies, payment records, wallet mappings, and audit history across task restarts; preserve it when the stack is removed or replaced.
+    Properties:
+      Encrypted: true
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+      FileSystemTags:
+        - Key: Name
+          Value: mochi-production-state
+
+  DataAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context: Gives the unprivileged Node container a dedicated /mochi-data directory owned by UID/GID 1000.
+    Properties:
+      FileSystemId: !Ref FileSystem
+      PosixUser: { Uid: '1000', Gid: '1000' }
+      RootDirectory:
+        Path: /mochi
+        CreationInfo:
+          OwnerUid: '1000'
+          OwnerGid: '1000'
+          Permissions: '0750'
+
+  EfsMountTargetA:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Select [0, !Ref SubnetIds]
+      SecurityGroups: [!Ref EfsSecurityGroup]
+  EfsMountTargetB:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Select [1, !Ref SubnetIds]
+      SecurityGroups: [!Ref EfsSecurityGroup]
+  EfsMountTargetC:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref FileSystem
+      SubnetId: !Select [2, !Ref SubnetIds]
+      SecurityGroups: [!Ref EfsSecurityGroup]
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Metadata:
+      com.aws.cloudformation.Context: Public entry point with TLS; target containers remain private inside the VPC.
+    Properties:
+      Name: mochi-production
+      Scheme: internet-facing
+      Type: application
+      IpAddressType: ipv4
+      Subnets: !Ref SubnetIds
+      SecurityGroups: [!Ref LoadBalancerSecurityGroup]
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '600'
+
+  McpTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: mochi-mcp
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: 3002
+      TargetType: ip
+      HealthCheckEnabled: true
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: traffic-port
+      Matcher: { HttpCode: '200' }
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      HealthCheckIntervalSeconds: 15
+      HealthCheckTimeoutSeconds: 5
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+
+  DashboardTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: mochi-dashboard
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: 3001
+      TargetType: ip
+      HealthCheckEnabled: true
+      HealthCheckPath: /api/network
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: traffic-port
+      Matcher: { HttpCode: '200-499' }
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      HealthCheckIntervalSeconds: 20
+      HealthCheckTimeoutSeconds: 8
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: This HTTP-only listener redirects every request to the separate HTTPS listener.
+        must:
+          - Do not forward application traffic over HTTP.
+      guard:
+        SuppressedRules:
+          - ELBV2_LISTENER_SSL_POLICY_RULE
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: '443'
+            StatusCode: HTTP_301
+
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: This listener uses the issued ACM certificate supplied through the constrained CertificateArn parameter.
+        must:
+          - The CertificateArn parameter must remain restricted to ACM certificate ARNs in ap-southeast-2.
+          - HTTPS must retain a TLS 1.2 or stronger security policy.
+      guard:
+        SuppressedRules:
+          - ELBV2_ACM_CERTIFICATE_REQUIRED
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DashboardTargetGroup
+
+  McpRoute:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref HttpsListener
+      Priority: 10
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /mcp
+            - '/mcp/*'
+            - /.well-known/*
+            - /oauth/*
+            - /health
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref McpTargetGroup
+
+  ApplicationCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: mochi-production
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: One Fargate task runs MCP, Mochi dashboard sign-in, approval, and OAuth; EFS persists OAuth code/refresh state and existing app JSON state, while OAuth and provider secrets are injected from Secrets Manager.
+        must:
+          - MONAD_NETWORK=mainnet requires a Monad mainnet RPC endpoint (chain ID 143) in the runtime secret.
+          - Keep provider credentials and private RPC URLs in Secrets Manager, never as plaintext task environment values.
+          - MCP OAuth issuer, resource, and ChatGPT redirect URI must match their published metadata and connector configuration.
+          - Keep MCP OAuth client credentials in Secrets Manager and do not expose access or refresh tokens in logs.
+          - Link legacy owner wallet data only to its configured verified identity; every other connector identity must use its own wallet ID.
+    Properties:
+      Family: mochi-production
+      Cpu: '512'
+      Memory: '2048'
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ExecutionRoleArn: !GetAtt EcrExecutionRole.Arn
+      TaskRoleArn: !GetAtt AppTaskRole.Arn
+      Volumes:
+        - Name: mochi-state
+          EFSVolumeConfiguration:
+            FilesystemId: !Ref FileSystem
+            TransitEncryption: ENABLED
+            AuthorizationConfig:
+              AccessPointId: !Ref DataAccessPoint
+              IAM: ENABLED
+      ContainerDefinitions:
+        - Name: mochi
+          Image: !Ref ImageUri
+          Essential: true
+          StopTimeout: 60
+          PortMappings:
+            - ContainerPort: 3001
+              Protocol: tcp
+            - ContainerPort: 3002
+              Protocol: tcp
+          MountPoints:
+            - SourceVolume: mochi-state
+              ContainerPath: /mochi-data
+              ReadOnly: false
+          Environment:
+            - { Name: NODE_ENV, Value: production }
+            - { Name: MONAD_NETWORK, Value: mainnet }
+            - { Name: MCP_TRANSPORT, Value: http }
+            - { Name: MCP_HTTP_PORT, Value: '3002' }
+            - { Name: MCP_PUBLIC_URL, Value: https://mcp.getmochi.dev }
+            - { Name: MCP_OAUTH_RESOURCE, Value: https://mcp.getmochi.dev/mcp }
+            - { Name: MCP_OAUTH_REDIRECT_URI, Value: https://chatgpt.com/connector_platform_oauth_redirect }
+            - { Name: COGNITO_ISSUER_URL, Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${MochiUserPool}' }
+            - { Name: COGNITO_CLIENT_ID, Value: !Ref MochiUserPoolClient }
+            - { Name: COGNITO_DOMAIN, Value: !Sub 'https://${MochiUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com' }
+            - { Name: COGNITO_CALLBACK_URL, Value: https://mcp.getmochi.dev/oauth/identity/callback }
+            - { Name: COGNITO_LEGACY_OWNER_EMAIL, Value: dinithmain@gmail.com }
+            - { Name: APPROVAL_WEBHOOK_URL, Value: http://127.0.0.1:3001/api/approvals }
+            - { Name: APPROVAL_POLL_TIMEOUT_MS, Value: '300000' }
+            - { Name: HYPERSYNC_URL, Value: https://monad.hypersync.xyz }
+            - { Name: MOCHI_DATA_DIR, Value: /mochi-data }
+          Secrets:
+            - { Name: MONAD_MAINNET_RPC_URL, ValueFrom: !Sub '${AppSecretsArn}:MONAD_MAINNET_RPC_URL::' }
+            - { Name: MCP_API_TOKEN, ValueFrom: !Sub '${AppSecretsArn}:MCP_API_TOKEN::' }
+            - { Name: MCP_OAUTH_CLIENT_ID, ValueFrom: !Sub '${AppSecretsArn}:MCP_OAUTH_CLIENT_ID::' }
+            - { Name: MCP_OAUTH_CLIENT_SECRET, ValueFrom: !Sub '${AppSecretsArn}:MCP_OAUTH_CLIENT_SECRET::' }
+            - { Name: APPROVAL_API_TOKEN, ValueFrom: !Sub '${AppSecretsArn}:APPROVAL_API_TOKEN::' }
+            - { Name: DASHBOARD_PASSWORD, ValueFrom: !Sub '${AppSecretsArn}:DASHBOARD_PASSWORD::' }
+            - { Name: DASHBOARD_SESSION_SECRET, ValueFrom: !Sub '${AppSecretsArn}:DASHBOARD_SESSION_SECRET::' }
+            - { Name: PRIVY_APP_ID, ValueFrom: !Sub '${AppSecretsArn}:PRIVY_APP_ID::' }
+            - { Name: PRIVY_APP_SECRET, ValueFrom: !Sub '${AppSecretsArn}:PRIVY_APP_SECRET::' }
+            - { Name: NANSEN_API_KEY, ValueFrom: !Sub '${AppSecretsArn}:NANSEN_API_KEY::' }
+            - { Name: ZERION_API_KEY, ValueFrom: !Sub '${AppSecretsArn}:ZERION_API_KEY::' }
+            - { Name: OX_API_KEY, ValueFrom: !Sub '${AppSecretsArn}:OX_API_KEY::' }
+            - { Name: OPENSEA_API_KEY, ValueFrom: !Sub '${AppSecretsArn}:OPENSEA_API_KEY::' }
+            - { Name: UNISWAP_API_KEY, ValueFrom: !Sub '${AppSecretsArn}:UNISWAP_API_KEY::' }
+            - { Name: HYPERSYNC_TOKEN, ValueFrom: !Sub '${AppSecretsArn}:HYPERSYNC_TOKEN::' }
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - node -e "fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 90
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref AppLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: mochi
+
+  ApplicationService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - HttpListener
+      - HttpsListener
+      - EfsMountTargetA
+      - EfsMountTargetB
+      - EfsMountTargetC
+    Properties:
+      ServiceName: mochi-production
+      Cluster: !Ref ApplicationCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      PlatformVersion: '1.4.0'
+      EnableExecuteCommand: false
+      HealthCheckGracePeriodSeconds: 120
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 100
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: !Ref SubnetIds
+          SecurityGroups: [!Ref TaskSecurityGroup]
+      LoadBalancers:
+        - ContainerName: mochi
+          ContainerPort: 3001
+          TargetGroupArn: !Ref DashboardTargetGroup
+        - ContainerName: mochi
+          ContainerPort: 3002
+          TargetGroupArn: !Ref McpTargetGroup
+
+Outputs:
+  CognitoUserPoolId:
+    Description: Cognito user pool for public Mochi email/password and optional Google sign-in.
+    Value: !Ref MochiUserPool
+  CognitoUserPoolClientId:
+    Description: Public OAuth client used by Mochi's server-side Cognito callback.
+    Value: !Ref MochiUserPoolClient
+  CognitoHostedLoginUrl:
+    Description: Cognito-hosted sign-in and sign-up domain in the selected Region.
+    Value: !Sub 'https://${MochiUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
+  ServiceEndpoint:
+    Description: Replace with your HTTPS domain after its DNS record points to the ALB.
+    Value: !Sub 'https://${ApplicationLoadBalancer.DNSName}'
+  McpEndpoint:
+    Description: Configure ChatGPT or another MCP client at this endpoint. Supports dynamic OAuth client registration, PKCE, and per-user Mochi sign-in.
+    Value: !Sub 'https://${ApplicationLoadBalancer.DNSName}/mcp'
+  LoadBalancerDnsName:
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+  EfsFileSystemId:
+    Value: !Ref FileSystem

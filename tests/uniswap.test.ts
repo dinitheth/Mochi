@@ -33,7 +33,7 @@ describe('Uniswap quote validation', () => {
   });
 
   it('rejects unverified transaction targets and mismatched senders', () => {
-    expect(() => parseUniswapQuote(quotePayload({ swapTransaction: { to: tokenOut, from: wallet, data: '0x12345678', chainId: 143 } }), wallet)).toThrow(/router allowlist/);
+    expect(() => parseUniswapQuote(quotePayload({ swapTransaction: { to: tokenOut, from: wallet, data: '0x12345678', chainId: 143 } }), wallet)).toThrow(new RegExp(`unverified transaction target ${tokenOut}.*router allowlist`, 'i'));
     expect(() => parseUniswapQuote(quotePayload({ swapTransaction: { to: router, from: tokenOut, data: '0x12345678', chainId: 143 } }), wallet)).toThrow(/sender/);
   });
 

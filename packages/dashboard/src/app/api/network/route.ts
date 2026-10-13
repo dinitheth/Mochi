@@ -13,12 +13,11 @@ export async function GET() {
       latestBlock: block.toString(),
       gasPriceWei: gas.toString(),
       gasPriceGwei: weiToGwei(gas),
-      rpcUrl: meta.rpcUrl,
       explorerUrl: meta.explorerUrl,
     });
   } catch (err) {
     return NextResponse.json(
-      { ok: false, network, error: err instanceof Error ? err.message : String(err) },
+      { ok: false, network, error: 'Unable to read network status from the configured RPC.' },
       { status: 502 },
     );
   }

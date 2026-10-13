@@ -13,6 +13,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express from 'express';
+import { oauthMcpAuthorization, registerOAuthRoutes } from './middleware/oauth.js';
 import { validateEnv, type Env } from './config/env.js';
 import { registerWalletTools } from './tools/wallet/index.js';
 import { registerTransactionTools } from './tools/transactions/index.js';
@@ -59,14 +60,23 @@ async function runStdio(env: Env): Promise<void> {
 
 async function runHttp(env: Env): Promise<void> {
   const app = express();
+  // The only trusted reverse proxy in production is the ALB; use its client IP for auth throttling.
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '2mb' }));
+  app.use(express.urlencoded({ extended: false, limit: '16kb' }));
+
+  registerOAuthRoutes(app, env);
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true, service: 'monad-mcp', network: env.MONAD_NETWORK });
   });
 
   // Stateless Streamable HTTP: fresh server+transport per request (simple, horizontally scalable).
-  app.post('/mcp', async (req, res) => {
+  // Public Streamable HTTP requires a user-bound OAuth token. A shared API token
+  // would bypass per-user wallet isolation and is therefore not accepted here.
+  const requireMcpAuth = oauthMcpAuthorization(env);
+
+  app.post('/mcp', requireMcpAuth, async (req, res) => {
     try {
       const server = createServer(env);
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
@@ -79,7 +89,7 @@ async function runHttp(env: Env): Promise<void> {
     }
   });
 
-  app.get('/mcp', async (req, res) => {
+  app.get('/mcp', requireMcpAuth, async (req, res) => {
     res.status(405).json({ ok: false, error: 'Use POST /mcp for Streamable HTTP requests.' });
   });
 

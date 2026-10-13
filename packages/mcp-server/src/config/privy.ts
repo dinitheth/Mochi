@@ -48,6 +48,43 @@ export async function getPrivyClient(env: Env): Promise<AnyClient | null> {
   }
 }
 
+/** Find the unique Privy-managed Ethereum wallet for a known legacy address. */
+export async function findWalletIdInPrivyApi(
+  walletApi: { getWallets(input: { chainType: 'ethereum'; limit: number; cursor?: string }): Promise<unknown> },
+  address: string,
+): Promise<string> {
+  const target = address.toLowerCase();
+  const matches = new Map<string, string>();
+  let cursor: string | undefined;
+  const maxPages = 100;
+  for (let page = 0; page < maxPages; page += 1) {
+    const result = await walletApi.getWallets({
+      chainType: 'ethereum',
+      limit: 100,
+      ...(cursor ? { cursor } : {}),
+    }) as { data?: Array<{ id?: unknown; address?: unknown }>; nextCursor?: unknown };
+    for (const wallet of result.data ?? []) {
+      if (typeof wallet.id === 'string' && typeof wallet.address === 'string' && wallet.address.toLowerCase() === target) {
+        matches.set(wallet.id, wallet.address);
+      }
+    }
+    if (matches.size > 1) throw new Error('More than one Privy wallet matches this address; no wallet was linked.');
+    if (typeof result.nextCursor !== 'string' || !result.nextCursor) {
+      const match = matches.keys().next().value as string | undefined;
+      if (!match) throw new Error('No Privy-managed Ethereum wallet matches this legacy address; no wallet was linked.');
+      return match;
+    }
+    cursor = result.nextCursor;
+  }
+  throw new Error('Privy wallet search exceeded its safe page limit; no wallet was linked.');
+}
+
+export async function findPrivyWalletIdByAddress(env: Env, address: string): Promise<string> {
+  const privy = await getPrivyClient(env);
+  if (!privy) throw new Error('Privy is not configured; a signing wallet cannot be recovered.');
+  return findWalletIdInPrivyApi(privy.walletApi, address);
+}
+
 /** Resolve the local-dev signer account (DEV_PRIVATE_KEY or ephemeral). */
 export function getLocalAccount(env: Env) {
   const key = env.DEV_PRIVATE_KEY && env.DEV_PRIVATE_KEY.length > 0 ? (env.DEV_PRIVATE_KEY as `0x${string}`) : null;

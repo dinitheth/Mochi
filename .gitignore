@@ -26,3 +26,5 @@ packages/contracts/cache/
 dash-out.log
 dash-err.log
 .DS_Store
+mochi-runtime-secret.json
+packages/mcp-server/oauth-state.json*

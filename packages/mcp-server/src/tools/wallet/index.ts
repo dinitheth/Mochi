@@ -1,10 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { formatEther } from 'viem';
+import { encodeFunctionData, formatEther, parseEther } from 'viem';
 import type { Env } from '../../config/env.js';
-import { explorerAddressUrl, getExplorerUrl, getPublicClient, NETWORK_META } from '../../config/monad.js';
-import { createOrLoadWallet, getStoredWallet, importWalletRecord } from '../../config/privy.js';
+import { explorerAddressUrl, explorerTxUrl, getExplorerUrl, getPublicClient, NETWORK_META } from '../../config/monad.js';
+import { createOrLoadWallet, findPrivyWalletIdByAddress, getStoredWallet, importWalletRecord, privySendTransaction } from '../../config/privy.js';
 import { auditLog } from '../../middleware/audit-log.js';
+import { approvalGate } from '../../middleware/approval-gate.js';
+import { simulateTx } from '../../middleware/simulate.js';
 import { ERC20_ABI, addTool, assertAddress, resolveWallet, textResult } from '../shared.js';
 import { resolveRecipient } from '../../config/contacts.js';
 import { AUSD_ADDRESS } from '../../config/payments.js';
@@ -26,7 +28,115 @@ const KNOWN_TOKENS: Record<string, Array<{ symbol: string; address: `0x${string}
   testnet: [{ symbol: 'WMON', address: '0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541' }],
 };
 
+const WMON_ABI = [
+  { type: 'function', name: 'deposit', stateMutability: 'payable', inputs: [], outputs: [] },
+  { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
+] as const;
+
 export function registerWalletTools(server: McpServer, env: Env): void {
+  addTool(
+    server,
+    'wallet_wrap_native',
+    'Wrap native MON into the canonical WMON token on the configured Monad network. Simulates the exact deposit call, applies the normal spending limit, and reports a transaction hash if broadcast confirmation is still pending. Use this instead of contract_write for native MON wrapping.',
+    {
+      amount: z.string().describe('MON amount to wrap, e.g. "0.5"'),
+      userId: z.string().optional().describe('User/session id owning the wallet'),
+    },
+    async ({ amount, userId }: { amount: string; userId?: string }) => {
+      let txHash: `0x${string}` | null = null;
+      try {
+        let amountWei: bigint;
+        try {
+          amountWei = parseEther(amount);
+        } catch {
+          throw new Error(`Invalid amount "${amount}". Use a decimal MON string like "0.5".`);
+        }
+        if (amountWei <= 0n) throw new Error('Amount must be greater than 0.');
+
+        const wallet = await resolveWallet(env, userId);
+        const wmon = NETWORK_META[env.MONAD_NETWORK].wmon;
+        const client = getPublicClient(env);
+        const code = await client.getBytecode({ address: wmon });
+        if (!code || code === '0x') throw new Error(`The configured WMON contract has no bytecode on ${NETWORK_META[env.MONAD_NETWORK].name}.`);
+
+        const before = await client.readContract({ address: wmon, abi: WMON_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] });
+        const data = encodeFunctionData({ abi: WMON_ABI, functionName: 'deposit' });
+        const simulation = await simulateTx(env, { from: wallet.address, to: wmon, value: amountWei, data });
+        if (!simulation.ok) throw new Error(`WMON wrap simulation failed: ${simulation.reason}`);
+
+        const gate = await approvalGate({
+          action: 'wallet_wrap_native',
+          details: {
+            from: wallet.address,
+            contract: wmon,
+            network: NETWORK_META[env.MONAD_NETWORK].name,
+            chainId: NETWORK_META[env.MONAD_NETWORK].chainId,
+            amountMON: formatEther(amountWei),
+            expectedWMON: formatEther(amountWei),
+            estimatedFeeMON: formatEther(simulation.feeWei),
+          },
+          valueWei: amountWei,
+          env,
+          reason: `Wrap ${formatEther(amountWei)} MON into WMON`,
+          userId,
+        });
+        if (gate.decision !== 'approved') {
+          await auditLog({ tool: 'wallet_wrap_native', userId, result: 'rejected', params: { amount: formatEther(amountWei), requestId: gate.requestId } });
+          return textResult({
+            ok: false,
+            status: 'approval_required',
+            requestId: gate.requestId,
+            summary: `No wrap transaction was sent. ${gate.message}${gate.requestId ? ` Check the Mochi dashboard for approval request ${gate.requestId}.` : ''}`,
+          });
+        }
+
+        txHash = await privySendTransaction(env, wallet, { to: wmon, value: amountWei, data });
+        let receipt;
+        try {
+          receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 45_000 });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          await auditLog({ tool: 'wallet_wrap_native', userId, result: 'pending', txHash, params: { amount: formatEther(amountWei) }, error: message });
+          return textResult({
+            ok: false,
+            status: 'broadcast',
+            txHash,
+            explorerUrl: explorerTxUrl(env, txHash),
+            retrySafe: false,
+            summary: `The ${formatEther(amountWei)} MON wrap was broadcast as ${txHash}, but its receipt is not confirmed yet. Do not submit it again; check this transaction on the explorer or with transaction_get_status.`,
+          });
+        }
+        if (receipt.status !== 'success') {
+          await auditLog({ tool: 'wallet_wrap_native', userId, result: 'error', txHash, params: { amount: formatEther(amountWei) }, error: 'Transaction reverted.' });
+          return textResult({ ok: false, status: 'reverted', txHash, explorerUrl: explorerTxUrl(env, txHash), retrySafe: true, summary: `The WMON wrap transaction reverted on-chain: ${explorerTxUrl(env, txHash)}.` });
+        }
+
+        const after = await client.readContract({ address: wmon, abi: WMON_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] });
+        const received = after - before;
+        await auditLog({ tool: 'wallet_wrap_native', userId, result: 'ok', txHash, params: { amount: formatEther(amountWei), wmonReceived: formatEther(received) } });
+        return textResult({
+          ok: true,
+          status: 'confirmed',
+          txHash,
+          explorerUrl: explorerTxUrl(env, txHash),
+          amountMON: formatEther(amountWei),
+          wmonReceived: formatEther(received),
+          wmonAddress: wmon,
+          network: NETWORK_META[env.MONAD_NETWORK].name,
+          blockNumber: receipt.blockNumber.toString(),
+          autoApproved: gate.autoApproved,
+          summary: `Wrapped ${formatEther(amountWei)} MON into ${formatEther(received)} WMON. Transaction confirmed in block ${receipt.blockNumber}: ${explorerTxUrl(env, txHash)}`,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await auditLog({ tool: 'wallet_wrap_native', userId, result: txHash ? 'pending' : 'error', ...(txHash ? { txHash } : {}), error: message });
+        return textResult(txHash
+          ? { ok: false, status: 'broadcast', txHash, explorerUrl: explorerTxUrl(env, txHash), retrySafe: false, summary: `The wrap transaction may already be on-chain (${txHash}), but its final result could not be read. Do not retry until transaction_get_status or the explorer confirms its state. ${message}` }
+          : { ok: false, status: 'failed_before_broadcast', retrySafe: true, error: message, summary: `The wrap was not broadcast: ${message}` });
+      }
+    },
+  );
+
   addTool(
     server,
     'wallet_initialize',
@@ -219,9 +329,13 @@ export function registerWalletTools(server: McpServer, env: Env): void {
     async ({ userId, address, walletId }: { userId: string; address: string; walletId?: string }) => {
       try {
         assertAddress(address);
-        const wallet = await importWalletRecord(userId, address, walletId ?? `linked:${address}`, env.MONAD_NETWORK);
-        const existing = await getStoredWallet(userId);
-        void existing;
+        // The public MCP endpoint overwrites userId from verified OAuth claims.
+        // Only the verified legacy owner may recover an omitted Privy wallet ID
+        // by address; allowing this for other users would enable wallet hijacking.
+        const resolvedWalletId = walletId ?? (userId === 'owner'
+          ? await findPrivyWalletIdByAddress(env, address)
+          : `linked:${address}`);
+        const wallet = await importWalletRecord(userId, address, resolvedWalletId, env.MONAD_NETWORK);
         await auditLog({ tool: 'wallet_import', userId, result: 'ok', params: { address } });
         return textResult({
           ok: true,

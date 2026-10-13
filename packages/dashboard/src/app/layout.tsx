@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import AutoApproveSwitch from '@/components/AutoApproveSwitch';
 import DashboardLogin from '@/components/DashboardLogin';
 import { isValidDashboardSession, SESSION_COOKIE } from '@/lib/auth';
@@ -16,13 +16,16 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
-  const authenticated = isValidDashboardSession(cookieStore.get(SESSION_COOKIE)?.value);
+  const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()]);
+  const publicPage = requestHeaders.get('x-mochi-public-page') === '1';
+  const authenticated = publicPage || isValidDashboardSession(cookieStore.get(SESSION_COOKIE)?.value);
   return (
     <html lang="en">
       <body className="min-h-screen">
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-          {!authenticated ? (
+          {publicPage ? (
+            children
+          ) : !authenticated ? (
             <DashboardLogin />
           ) : (
             <>

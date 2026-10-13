@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Temporary private source bucket and CodeBuild worker for building Mochi's Docker image into ECR.
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+Parameters:
+  RepositoryUri:
+    Type: String
+    AllowedPattern: '^\d{12}\.dkr\.ecr\.ap-southeast-2\.amazonaws\.com/[a-z0-9._/-]+$'
+  ImageTag:
+    Type: String
+    AllowedPattern: '^[a-zA-Z0-9._-]{1,128}$'
+Resources:
+  BuildSourceBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      com.aws.cloudformation.Context: Short-lived, private source staging for a CodeBuild image build; expire objects automatically after one day.
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireBuildSource
+            Status: Enabled
+            ExpirationInDays: 1
+      Tags:
+        - Key: Project
+          Value: Mochi
+        - Key: Purpose
+          Value: TemporaryBuildSource
+
+  BuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Metadata:
+      com.aws.cloudformation.Context: Retain short-lived CodeBuild logs long enough to diagnose an image build.
+    Properties:
+      LogGroupName: /aws/codebuild/mochi-image-build
+      RetentionInDays: 7
+
+  BuildRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context: Build worker reads one object from the private source bucket and pushes only to the Mochi ECR repository.
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codebuild.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BuildAndPushMochiImage
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${BuildLogGroup}:*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub '${BuildSourceBucket.Arn}/mochi-source.zip'
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                Resource: !GetAtt BuildSourceBucket.Arn
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !Sub 'arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/mochi'
+
+  ImageBuildProject:
+    Type: AWS::CodeBuild::Project
+    Metadata:
+      com.aws.cloudformation.Context: Use a single on-demand privileged worker to build the local Dockerfile and push the resulting image to private ECR.
+    Properties:
+      Name: mochi-image-build
+      Description: Build Mochi container and publish it to private ECR.
+      ServiceRole: !GetAtt BuildRole.Arn
+      TimeoutInMinutes: 30
+      QueuedTimeoutInMinutes: 30
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        Image: aws/codebuild/standard:7.0
+        ComputeType: BUILD_GENERAL1_SMALL
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - { Name: MOCHI_REPOSITORY_URI, Value: !Ref RepositoryUri }
+          - { Name: MOCHI_IMAGE_TAG, Value: !Ref ImageTag }
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+          GroupName: !Ref BuildLogGroup
+          StreamName: build
+      Source:
+        Type: NO_SOURCE
+        BuildSpec: !Sub |
+          version: 0.2
+          phases:
+            build:
+              commands:
+                - mkdir -p /tmp/mochi-source
+                - aws s3 cp s3://${BuildSourceBucket}/mochi-source.zip /tmp/mochi-source.zip
+                - unzip -q /tmp/mochi-source.zip -d /tmp/mochi-source
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+                - docker build --tag $MOCHI_REPOSITORY_URI:$MOCHI_IMAGE_TAG /tmp/mochi-source
+                - docker push $MOCHI_REPOSITORY_URI:$MOCHI_IMAGE_TAG
+      Tags:
+        - Key: Project
+          Value: Mochi
+
+Outputs:
+  SourceBucketName:
+    Value: !Ref BuildSourceBucket
+  BuildProjectName:
+    Value: !Ref ImageBuildProject
+  ImageUri:
+    Value: !Sub '${RepositoryUri}:${ImageTag}'

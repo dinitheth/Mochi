@@ -56,7 +56,7 @@ function uint(value: unknown, field: string): bigint {
 function parseTransaction(value: unknown, swapper: `0x${string}`, allowedTargets: Set<string> | null = SWAP_TARGETS): ApiTransaction {
   const tx = record(value, 'transaction');
   const to = address(tx.to, 'transaction target');
-  if (allowedTargets && !allowedTargets.has(to.toLowerCase())) throw new Error('Uniswap returned a transaction target outside the verified Monad router allowlist.');
+  if (allowedTargets && !allowedTargets.has(to.toLowerCase())) throw new Error(`Uniswap returned unverified transaction target ${to}; Mochi refused to use it because it is outside the verified Monad router allowlist.`);
   const from = address(tx.from, 'transaction sender');
   if (from.toLowerCase() !== swapper.toLowerCase()) throw new Error('Uniswap transaction sender does not match the connected wallet.');
   const chainId = Number(tx.chainId);

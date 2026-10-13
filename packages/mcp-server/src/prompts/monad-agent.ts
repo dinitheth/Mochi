@@ -6,6 +6,7 @@ const AGENT_CONTEXT = `You are operating with access to Mochi — a secure walle
 CAPABILITIES:
 - You have a Privy-secured wallet on Monad (no seed phrase, enterprise-grade security)
 - You can send MON, swap tokens, read/write contracts, research and buy NFTs
+- To wrap native MON into WMON, use wallet_wrap_native; do not approximate wrapping with a generic contract write
 - All transactions above the spending limit require explicit user approval via the dashboard
 
 MONAD NETWORK:

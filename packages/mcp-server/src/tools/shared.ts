@@ -10,8 +10,31 @@ function isAddress(v: string): boolean {
 }
 
 export function textResult(payload: unknown) {
-  const text = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  const text = typeof payload === 'string' ? redactConfiguredSecrets(payload) : JSON.stringify(redactPayload(payload), null, 2);
   return { content: [{ type: 'text' as const, text }] };
+}
+
+const SENSITIVE_ENV_NAME = /(?:API_KEY|TOKEN|PASSWORD|SECRET|RPC_URL)$/i;
+
+function redactConfiguredSecrets(value: string): string {
+  return Object.entries(process.env)
+    .filter(([name, secret]) => SENSITIVE_ENV_NAME.test(name) && Boolean(secret))
+    .sort((a, b) => (b[1]?.length ?? 0) - (a[1]?.length ?? 0))
+    .reduce((text, [name, secret]) => text.replaceAll(secret!, `[redacted ${name}]`), value);
+}
+
+function redactPayload(value: unknown): unknown {
+  if (typeof value === 'string') return redactConfiguredSecrets(value);
+  if (Array.isArray(value)) return value.map(redactPayload);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [
+      key,
+      /(?:api.?key|token|password|secret|rpc.?url)/i.test(key) && typeof nested === 'string'
+        ? '[redacted]'
+        : redactPayload(nested),
+    ]));
+  }
+  return value;
 }
 
 export function errorResult(message: string, extra?: Record<string, unknown>) {
@@ -94,6 +117,7 @@ const TOOL_META: Record<string, ToolMeta> = {
   wallet_initialize: { title: 'Set up wallet', annotations: { ...WRITE, destructiveHint: false } },
   wallet_get_address: { title: 'Get wallet address', annotations: { ...READONLY } },
   wallet_get_balance: { title: 'Get wallet balance', annotations: { ...READONLY } },
+  wallet_wrap_native: { title: 'Wrap MON into WMON', annotations: { ...MONEY } },
   wallet_import: { title: 'Link existing wallet', annotations: { ...WRITE, destructiveHint: false } },
   wallet_portfolio: { title: 'Wallet portfolio (Zerion)', annotations: { ...READONLY } },
   transaction_send_mon: { title: 'Send MON', annotations: { ...MONEY } },
@@ -154,6 +178,16 @@ const TOOL_META: Record<string, ToolMeta> = {
   chain_get_gas_price: { title: 'Gas price', annotations: { ...READONLY } },
   chain_get_logs: { title: 'Query event logs', annotations: { ...READONLY } },
 };
+
+/** Read-only classification used by remote authorization middleware. Unknown tools fail closed. */
+export function isReadOnlyMcpTool(name: string): boolean {
+  if (['render_marketplace', 'render_auctions', 'render_payment_request'].includes(name)) return true;
+  return TOOL_META[name]?.annotations?.readOnlyHint === true;
+}
+
+export function isKnownMcpTool(name: string): boolean {
+  return Object.hasOwn(TOOL_META, name) || ['render_marketplace', 'render_auctions', 'render_payment_request'].includes(name);
+}
 
 export async function resolveWallet(env: Env, userId?: string): Promise<StoredWallet> {
   if (userId) {

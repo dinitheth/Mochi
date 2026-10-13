@@ -12,7 +12,7 @@ export function registerChainTools(server: McpServer, env: Env): void {
   addTool(
     server,
     'chain_get_network_stats',
-    'Live Monad network stats: latest block, gas price, chain id, RPC and explorer.',
+    'Live Monad network stats: latest block, gas price, chain id, and explorer.',
     {},
     async () => {
       try {
@@ -35,7 +35,6 @@ export function registerChainTools(server: McpServer, env: Env): void {
           gasPriceGwei: formatGwei(gasPrice),
           advertisedTps: meta.tps,
           advertisedBlockTimeMs: meta.blockTimeMs,
-          rpcUrl: meta.rpcUrl,
           explorerUrl: meta.explorerUrl,
           summary: `${meta.name} (chain ${meta.chainId}): block ${blockNumber}, gas ${formatGwei(gasPrice)} gwei, ~${meta.blockTimeMs}ms blocks, ~${meta.tps} TPS advertised.`,
         });
