@@ -41,9 +41,6 @@ const AUTH_CODE_TTL_SECONDS = 5 * 60;
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const ALLOWED_SCOPES = new Set([READ_SCOPE, WRITE_SCOPE]);
-const LOGIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
-const MAX_LOGIN_FAILURES = 8;
-const loginFailures = new Map<string, { count: number; resetAt: number }>();
 const registrationAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function base64url(value: string | Buffer): string {
@@ -198,16 +195,6 @@ function currentMembers(env: Env): Array<{ id: string; password: string; role: O
   return env.DASHBOARD_PASSWORD ? [{ id: 'owner', password: env.DASHBOARD_PASSWORD, role: 'admin' }] : [];
 }
 
-function authenticatePassword(password: string, env: Env): OAuthActor | null {
-  const members = currentMembers(env);
-  let actor: OAuthActor | null = null;
-  // Compare against every configured credential to avoid leaking which account matched.
-  for (const member of members) {
-    if (constantTimeEqual(password, member.password) && !actor) actor = { id: member.id, role: member.role, authVersion: authVersion(member, env) };
-  }
-  return actor;
-}
-
 function authVersion(member: { id: string; password: string; role: OAuthRole }, env: Env): string {
   return hmac(env.DASHBOARD_SESSION_SECRET, `${member.id}:${member.role}:${hashToken(member.password)}`);
 }
@@ -271,29 +258,24 @@ function htmlEscape(value: string): string {
 }
 
 function page(title: string, content: string): string {
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07070b"><title>${htmlEscape(title)} · Mochi</title><style>
-    :root{color-scheme:dark;--ink:#07070b;--purple:#836ef9;--lilac:#b6aaff;--mint:#a8f0c4;--line:rgba(255,255,255,.12);--glass:rgba(21,20,31,.68)}
-    *{box-sizing:border-box}html{min-height:100%;background:var(--ink)}body{position:relative;isolation:isolate;min-height:100vh;margin:0;display:grid;place-items:center;overflow-x:hidden;padding:clamp(20px,5vw,64px);color:#f4f2ff;font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(ellipse at 16% 6%,rgba(131,110,249,.25),transparent 38rem),radial-gradient(ellipse at 86% 15%,rgba(95,239,164,.12),transparent 30rem),radial-gradient(ellipse at 52% 100%,rgba(131,110,249,.11),transparent 42rem),linear-gradient(145deg,#09080e 0%,#080a0e 48%,#0a0911 100%);background-attachment:fixed}
-    body:before{position:fixed;z-index:-1;inset:0;pointer-events:none;content:"";opacity:.24;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(to bottom,#000,transparent 82%)}
-    .connect-shell{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(20rem,30rem);align-items:center;gap:clamp(3rem,8vw,8rem);width:min(100%,1240px);margin:auto}
-    .connect-copy{max-width:40rem}.brand-pill{display:inline-flex;align-items:center;gap:9px;margin:0;padding:9px 16px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.68);font-size:12px;font-weight:700;letter-spacing:.18em}.brand-dot{width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 14px rgba(168,240,196,.8)}.brand-separator{color:rgba(255,255,255,.3)}
-    .connect-copy h2{margin:32px 0 0;font-size:clamp(3.5rem,7vw,6.5rem);font-weight:750;line-height:.95;letter-spacing:-.065em}.brand-gradient{background:linear-gradient(90deg,var(--lilac),#9280ff 52%,var(--mint) 145%);-webkit-background-clip:text;background-clip:text;color:transparent}.connect-copy>p:not(.brand-pill){max-width:36rem;margin:24px 0 0;color:rgba(244,242,255,.62);font-size:18px;line-height:1.7}.feature-tags{display:flex;flex-wrap:wrap;gap:9px;margin-top:28px}.feature-tags span{padding:8px 12px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(255,255,255,.035);color:rgba(244,242,255,.58);font-size:12px}
-    .connect-card{width:100%;padding:clamp(24px,4vw,38px);border:1px solid rgba(255,255,255,.14);border-radius:32px;background:linear-gradient(145deg,rgba(27,25,38,.78),rgba(11,12,17,.76));box-shadow:0 28px 90px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.08);-webkit-backdrop-filter:blur(28px) saturate(145%);backdrop-filter:blur(28px) saturate(145%)}
-    .card-brand{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}.card-brand-copy{min-width:0}.eyebrow{margin:0;color:var(--lilac);font-size:11px;font-weight:700;letter-spacing:.16em}.connect-card h1{margin:8px 0 0;font-size:clamp(25px,3vw,30px);font-weight:700;letter-spacing:-.035em;line-height:1.15}.muted{color:rgba(244,242,255,.58);line-height:1.6}.card-brand .muted{margin:10px 0 0;font-size:14px}.brand-mark{display:grid;width:46px;height:46px;flex:0 0 auto;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:17px;background:linear-gradient(135deg,rgba(131,110,249,.34),rgba(168,240,196,.12));color:#d7d0ff;font-size:20px;font-weight:750}
-    .scope-list{display:grid;gap:10px;margin-top:20px}.scope{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:linear-gradient(145deg,rgba(35,32,49,.78),rgba(15,16,23,.76));box-shadow:inset 0 1px 0 rgba(255,255,255,.035);-webkit-backdrop-filter:blur(18px) saturate(135%);backdrop-filter:blur(18px) saturate(135%)}.scope-icon{display:grid;width:30px;height:30px;flex:0 0 auto;place-items:center;border:1px solid rgba(182,170,255,.2);border-radius:11px;background:rgba(131,110,249,.14);color:var(--lilac);font-size:11px;font-weight:700}.scope strong{display:block;color:#f4f2ff;font-size:14px}.scope .muted{margin:3px 0 0;font-size:13px}
-    label{display:block;margin:20px 0 8px;color:rgba(244,242,255,.72);font-size:12px;font-weight:650;letter-spacing:.07em}input[type=password]{width:100%;min-height:52px;padding:13px 16px;border:1px solid rgba(255,255,255,.14);border-radius:16px;outline:none;background:rgba(5,5,10,.48);color:#fff;font-size:16px;transition:border-color 160ms ease,box-shadow 160ms ease}input[type=password]:focus{border-color:rgba(182,170,255,.75);box-shadow:0 0 0 4px rgba(131,110,249,.16)}
-    .auth-form{display:grid;gap:10px;margin-top:20px}.auth-form button{width:100%;min-height:50px;padding:12px 18px;border:1px solid transparent;border-radius:999px;font-size:15px;font-weight:700;cursor:pointer;transition:transform 160ms ease,filter 160ms ease,box-shadow 160ms ease}.auth-form button:hover{transform:translateY(-1px);filter:brightness(1.06)}.auth-form button:focus-visible{outline:2px solid var(--mint);outline-offset:3px}.primary-button{background:linear-gradient(110deg,#836ef9,#a393ff 52%,#a8f0c4 145%);color:#100d1d;box-shadow:0 8px 28px rgba(131,110,249,.24)}.secondary-button{border-color:rgba(255,255,255,.12)!important;background:rgba(255,255,255,.055);color:#e4dfff}.error{margin:16px 0 0;color:#ffaaa9;font-size:14px}.card-footnote{margin:18px 0 0;color:rgba(244,242,255,.38);font-size:12px;line-height:1.6;text-align:center}
-    @media(max-width:760px){body{padding:28px 20px}.connect-shell{grid-template-columns:1fr;gap:30px;align-content:center;width:min(100%,34rem)}.connect-copy{max-width:36rem}.connect-copy h2{margin-top:22px;font-size:clamp(3rem,14vw,4.25rem)}.connect-copy>p:not(.brand-pill){margin-top:14px;font-size:15px}.feature-tags{margin-top:18px}.connect-card{border-radius:26px}}
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f6f7"><title>${htmlEscape(title)} · Mochi</title><style>
+    :root{color-scheme:light;--text:#101828;--muted:#667085;--blue:#0875db;--line:#d0d5dd;--lavender:#eee3ff}
+    *{box-sizing:border-box}html{min-height:100%;background:#f7f6f7}body{position:relative;isolation:isolate;min-height:100vh;margin:0;display:grid;place-items:center;overflow-x:hidden;padding:24px;color:var(--text);font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(ellipse 48rem 30rem at 100% -8%,rgba(255,239,191,.82),transparent 72%),radial-gradient(ellipse 42rem 36rem at 82% -16%,rgba(232,207,255,.88),transparent 70%),linear-gradient(34deg,rgba(237,225,255,.96) 0 24%,transparent 24.1%),linear-gradient(180deg,#f8f7f8,#f7f6f7 68%,#f5f1fa);background-attachment:fixed}
+    .connect-shell{width:min(100%,28rem);margin:auto}.connect-copy{display:none}.connect-card{width:100%;padding:28px 24px;border:1px solid rgba(152,162,179,.56);border-radius:10px;background:rgba(255,255,255,.96);box-shadow:0 16px 44px rgba(42,30,70,.11);-webkit-backdrop-filter:blur(18px) saturate(125%);backdrop-filter:blur(18px) saturate(125%)}
+    .card-brand{margin-bottom:20px}.card-brand-copy{min-width:0}.eyebrow{display:none}.connect-card h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.25}.muted{color:var(--muted);line-height:1.55}.card-brand .muted{margin:8px 0 0;font-size:14px}.brand-mark{display:none}
+    .scope-list{display:grid;gap:10px;margin-top:18px}.scope{display:flex;align-items:flex-start;gap:11px;padding:13px;border:1px solid rgba(152,162,179,.28);border-radius:9px;background:linear-gradient(135deg,rgba(240,231,255,.58),rgba(255,248,222,.42))}.scope-icon{display:grid;width:27px;height:27px;flex:0 0 auto;place-items:center;border:1px solid rgba(131,110,249,.18);border-radius:8px;background:#f1eaff;color:#7355d9;font-size:10px;font-weight:700}.scope strong{display:block;color:var(--text);font-size:14px}.scope .muted{margin:3px 0 0;font-size:13px}
+    .auth-form{display:grid;gap:10px;margin-top:20px}.auth-form button{width:100%;min-height:42px;padding:10px 16px;border:1px solid transparent;border-radius:8px;font-size:14px;font-weight:650;cursor:pointer;transition:transform 160ms ease,filter 160ms ease,box-shadow 160ms ease}.auth-form button:hover{transform:translateY(-1px);filter:brightness(1.04)}.auth-form button:focus-visible{outline:2px solid #1685ed;outline-offset:3px}.primary-button{background:#0875db;color:#fff;box-shadow:none}.secondary-button{border-color:#d0d5dd!important;background:#fff;color:#344054}.error{margin:14px 0 0;color:#b42318;font-size:14px}.card-footnote{margin:16px 0 0;color:#667085;font-size:12px;line-height:1.55;text-align:center}
+    @media(max-width:480px){body{padding:18px}.connect-card{padding:24px 20px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
-  </style><body><main class="connect-shell"><section class="connect-copy" aria-label="Mochi and Monad"><p class="brand-pill"><span class="brand-dot" aria-hidden="true"></span> MOCHI <span class="brand-separator">/</span> MONAD</p><h2>Your wallet,<br><span class="brand-gradient">in your flow.</span></h2><p>A clear, secure way to connect your Mochi tools with ChatGPT. You stay in control of what you approve.</p><div class="feature-tags" aria-label="Mochi features"><span>Wallet insights</span><span>Monad tools</span><span>You're in control</span></div></section><section class="connect-card" aria-label="Mochi connection">${content}</section></main></body></html>`;
+  </style><body><main class="connect-shell"><section class="connect-card" aria-label="Mochi connection">${content}</section></main></body></html>`;
 }
 
 function formPage(request: AuthorizationRequest, env: Env, error?: string): string {
   const scopeLabels = request.scope.map((scope, index) => `<div class="scope"><span class="scope-icon" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><strong>${scope === READ_SCOPE ? 'View Mochi data' : 'Prepare Mochi actions'}</strong><p class="muted">${scope === READ_SCOPE ? 'Read wallet, portfolio, market, and payment information.' : 'Prepare wallet and payment actions. Mochi approval rules still apply before transactions are submitted.'}</p></div></div>`).join('');
   const authControls = request.actor
-    ? '<p class="muted">You’re signed in. Review the access below before connecting.</p><form class="auth-form" method="post" action="/oauth/authorize/consent"><input type="hidden" name="authorization_request" value="' + htmlEscape(signAuthorizationRequest(JSON.stringify(request), env)) + '"><button class="primary-button" name="decision" value="approve">Approve and connect</button><button class="secondary-button" name="decision" value="deny" formnovalidate>Cancel</button></form>'
-    : '<form class="auth-form" method="post" action="/oauth/authorize/consent"><input type="hidden" name="authorization_request" value="' + htmlEscape(signAuthorizationRequest(JSON.stringify(request), env)) + '"><label for="password">MOCHI DASHBOARD PASSWORD</label><input id="password" name="password" type="password" autocomplete="current-password" required><button class="primary-button" name="decision" value="approve">Approve and connect</button><button class="secondary-button" name="decision" value="deny" formnovalidate>Cancel</button></form>';
-  return page('Connect ChatGPT to Mochi', `<div class="card-brand"><div class="card-brand-copy"><p class="eyebrow">CHATGPT CONNECTION</p><h1>Connect ChatGPT to Mochi</h1><p class="muted">Review what this connection can access. You can disconnect Mochi from ChatGPT settings at any time.</p></div><span class="brand-mark" aria-hidden="true">M</span></div><div class="scope-list" aria-label="Requested access">${scopeLabels}</div>${error ? `<p class="error" role="alert">${htmlEscape(error)}</p>` : ''}${authControls}<p class="card-footnote">Your wallet actions still follow Mochi’s approval rules.</p>`);
+    ? '<form class="auth-form" method="post" action="/oauth/authorize/consent"><input type="hidden" name="authorization_request" value="' + htmlEscape(signAuthorizationRequest(JSON.stringify(request), env)) + '"><button class="primary-button" name="decision" value="approve">Approve and connect</button><button class="secondary-button" name="decision" value="deny" formnovalidate>Cancel</button></form>'
+    : '<p class="muted">Sign in to your Mochi account to continue connecting.</p>';
+  return page('Connect ChatGPT to Mochi', `<div class="card-brand"><div class="card-brand-copy"><h1>Connect ChatGPT to Mochi</h1><p class="muted">Review what this connection can access.</p></div></div><div class="scope-list" aria-label="Requested access">${scopeLabels}</div>${error ? `<p class="error" role="alert">${htmlEscape(error)}</p>` : ''}${authControls}<p class="card-footnote">You can disconnect Mochi from ChatGPT settings at any time.</p>`);
 }
 
 function oauthError(response: Response, status: number, error: string, description?: string): void {
@@ -450,7 +432,8 @@ export function registerOAuthRoutes(app: import('express').Express, env: Env): v
         nonce, code_challenge: codeChallenge, code_challenge_method: 'S256' }).toString();
       return res.redirect(302, login.toString());
     }
-    res.setHeader('Cache-Control', 'no-store').send(formPage(request, env));
+    return res.status(503).setHeader('Cache-Control', 'no-store')
+      .send(page('Mochi sign-in unavailable', '<h1>Sign-in unavailable</h1><p class="muted">Please try connecting again in a little while.</p>'));
   }));
 
   app.post('/oauth/authorize/consent', asyncHandler(async (req, res) => {
@@ -482,26 +465,13 @@ export function registerOAuthRoutes(app: import('express').Express, env: Env): v
       res.clearCookie(cookieName, { path: '/oauth' });
       return redirectWithAuthError(res, request, env, 'access_denied', 'You cancelled the Mochi connection.');
     }
-    const password = typeof req.body?.password === 'string' ? req.body.password : '';
-    const actor = request.actor ?? authenticatePassword(password, env);
-    const remote = req.ip || req.socket.remoteAddress || 'unknown';
-    const previousAttempt = loginFailures.get(remote);
-    if (previousAttempt && previousAttempt.resetAt <= Date.now()) loginFailures.delete(remote);
-    if (!loginFailures.has(remote) && loginFailures.size >= 10_000) {
-      for (const [ip, failed] of loginFailures) if (failed.resetAt <= Date.now()) loginFailures.delete(ip);
-      if (loginFailures.size >= 10_000) return res.status(429).send(page('Try later', '<h1>Sign-in is temporarily busy</h1><p class="muted">Try again in a few minutes.</p>'));
-    }
-    if ((loginFailures.get(remote)?.count ?? 0) >= MAX_LOGIN_FAILURES) {
-      return res.status(429).send(page('Try later', '<h1>Too many sign-in attempts</h1><p class="muted">Wait 15 minutes before trying again.</p>'));
-    }
+    const actor = request.actor;
     if (!actor) {
-      const current = loginFailures.get(remote);
-      loginFailures.set(remote, current && current.resetAt > Date.now()
-        ? { count: current.count + 1, resetAt: current.resetAt }
-        : { count: 1, resetAt: Date.now() + LOGIN_FAILURE_WINDOW_MS });
-      return res.status(401).send(formPage(request, env, 'Password was not accepted. Check it and try again.'));
+      const fresh = await consumeAuthorizationRequest(request, env);
+      if (!fresh) return res.status(400).send(page('Sign-in expired', '<h1>Sign-in expired</h1><p class="muted">Return to ChatGPT and try connecting again.</p>'));
+      res.clearCookie(cookieName, { path: '/oauth' });
+      return res.status(401).send(page('Sign-in required', '<h1>Sign-in required</h1><p class="muted">Return to ChatGPT and sign in to Mochi before connecting.</p>'));
     }
-    loginFailures.delete(remote);
     if (request.scope.includes(WRITE_SCOPE) && !['admin', 'preparer'].includes(actor.role)) {
       const fresh = await consumeAuthorizationRequest(request, env);
       if (!fresh) return res.status(400).send(page('Expired request', '<h1>Sign-in expired</h1><p class="muted">Return to ChatGPT and try connecting again.</p>'));
