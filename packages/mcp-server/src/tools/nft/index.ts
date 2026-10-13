@@ -193,7 +193,18 @@ export function registerNFTTools(server: McpServer, env: Env): void {
         return textResult({ ok: false, error: message });
       }
     },
-    { _meta: { ui: { resourceUri: OPENSEA_URI }, 'openai/outputTemplate': OPENSEA_URI, 'openai/toolInvocation/invoking': 'Finding NFTs on OpenSea…', 'openai/toolInvocation/invoked': 'NFT listings are ready.' } },
+    {
+      outputSchema: z.object({
+        ok: z.boolean(), provider: z.string(), network: z.string(), collectionSlug: z.string(), summary: z.string(),
+        listings: z.array(z.object({
+          collectionSlug: z.string(), collectionName: z.string(), name: z.string(), imageUrl: z.string().nullable(),
+          floorPrice: z.number().nullable(), floorCurrency: z.string().nullable(), orderHash: z.string(), contractAddress: z.string(),
+          tokenId: z.string(), currency: z.string(), currencyDecimals: z.number(), priceRaw: z.string(), priceMON: z.string(),
+          protocolAddress: z.string().nullable(), openseaUrl: z.string(),
+        })),
+      }),
+      _meta: { ui: { resourceUri: OPENSEA_URI }, 'openai/outputTemplate': OPENSEA_URI, 'openai/toolInvocation/invoking': 'Finding NFTs on OpenSea…', 'openai/toolInvocation/invoked': 'NFT listings are ready.' },
+    },
   );
 
   addTool(
