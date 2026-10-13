@@ -41,6 +41,26 @@ describe('private RPC credential handling', () => {
     expect(text).toContain('[redacted]');
   });
 
+  it('redacts credential fields without hiding token identity fields', () => {
+    const result = textResult({
+      token_symbol: 'WMON',
+      token_address: '0x1234567890123456789012345678901234567890',
+      tokenId: '42',
+      tokenIn: 'WMON',
+      apiKey: 'do-not-show',
+      session_token: 'do-not-show-either',
+    });
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload).toMatchObject({
+      token_symbol: 'WMON',
+      token_address: '0x1234567890123456789012345678901234567890',
+      tokenId: '42',
+      tokenIn: 'WMON',
+      apiKey: '[redacted]',
+      session_token: '[redacted]',
+    });
+  });
+
   it('does not expose private RPC URLs through the mainnet network resource', async () => {
     const rpcUrl = 'https://rpc.example.invalid/private-token';
     vi.stubEnv('MONAD_MAINNET_RPC_URL', rpcUrl);

@@ -53,12 +53,23 @@ function redactPayload(value: unknown): unknown {
   if (value && typeof value === 'object') {
     return Object.fromEntries(Object.entries(value).map(([key, nested]) => [
       key,
-      /(?:api.?key|token|password|secret|rpc.?url)/i.test(key) && typeof nested === 'string'
+      isSensitivePayloadKey(key) && typeof nested === 'string'
         ? '[redacted]'
         : redactPayload(nested),
     ]));
   }
   return value;
+}
+
+function isSensitivePayloadKey(key: string): boolean {
+  // Match credential fields, not ordinary domain fields such as token_symbol,
+  // token_address, tokenId, or tokenIn. Those are needed to identify assets.
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return [
+    'token', 'apikey', 'accesstoken', 'refreshtoken', 'idtoken', 'sessiontoken',
+    'clientsecret', 'secret', 'secretkey', 'password', 'privatekey', 'rpcurl',
+    'authorization', 'credential',
+  ].some((suffix) => normalized === suffix || normalized.endsWith(suffix));
 }
 
 export function errorResult(message: string, extra?: Record<string, unknown>) {
