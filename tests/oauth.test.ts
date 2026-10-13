@@ -78,6 +78,8 @@ describe('Cognito wallet ownership mapping', () => {
   it('links only the configured verified owner email to legacy owner data', () => {
     const env = makeEnv({ COGNITO_LEGACY_OWNER_EMAIL: 'DinithMain@gmail.com' });
     expect(cognitoLegacyWalletOwnerId({ email: 'dinithmain@gmail.com', email_verified: true }, env)).toBe('owner');
+    expect(cognitoLegacyWalletOwnerId({ email: 'dinithmain@gmail.com', email_verified: 'true' }, env)).toBe('owner');
+    expect(cognitoLegacyWalletOwnerId({ email: 'dinithmain@gmail.com', email_verified: ' false ' }, env)).toBeUndefined();
     expect(cognitoLegacyWalletOwnerId({ email: 'dinithmain@gmail.com', email_verified: false }, env)).toBeUndefined();
     expect(cognitoLegacyWalletOwnerId({ email: 'other@example.com', email_verified: true }, env)).toBeUndefined();
     expect(cognitoLegacyWalletOwnerId({ email: null, email_verified: true }, env)).toBeUndefined();

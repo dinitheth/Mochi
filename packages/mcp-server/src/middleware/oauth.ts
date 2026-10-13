@@ -66,7 +66,9 @@ export function cognitoLegacyWalletOwnerId(
 ): string | undefined {
   const email = typeof identity.email === 'string' ? identity.email.trim().toLowerCase() : '';
   const ownerEmail = env.COGNITO_LEGACY_OWNER_EMAIL.trim().toLowerCase();
-  return ownerEmail && identity.email_verified === true && email === ownerEmail ? 'owner' : undefined;
+  const emailVerified = identity.email_verified === true
+    || (typeof identity.email_verified === 'string' && identity.email_verified.trim().toLowerCase() === 'true');
+  return ownerEmail && emailVerified && email === ownerEmail ? 'owner' : undefined;
 }
 
 function hashToken(value: string): string {
