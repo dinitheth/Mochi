@@ -335,7 +335,7 @@ export function registerWalletTools(server: McpServer, env: Env): void {
         const resolvedWalletId = walletId ?? (userId === 'owner'
           ? await findPrivyWalletIdByAddress(env, address)
           : `linked:${address}`);
-        const wallet = await importWalletRecord(userId, address, resolvedWalletId, env.MONAD_NETWORK);
+        const wallet = await importWalletRecord(env, userId, address, resolvedWalletId, env.MONAD_NETWORK);
         await auditLog({ tool: 'wallet_import', userId, result: 'ok', params: { address } });
         return textResult({
           ok: true,

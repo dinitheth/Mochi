@@ -215,7 +215,7 @@ export function isKnownMcpTool(name: string): boolean {
 
 export async function resolveWallet(env: Env, userId?: string): Promise<StoredWallet> {
   if (userId) {
-    const w = await getStoredWallet(userId);
+    const w = await getStoredWallet(userId, env);
     if (w) return w;
     throw new Error(
       `No wallet found for userId "${userId}". Call wallet_initialize with this userId first.`,

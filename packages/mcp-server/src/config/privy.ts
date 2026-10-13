@@ -17,19 +17,39 @@ type AnyClient = any;
 
 let privyClient: AnyClient | null | undefined;
 
-const STATE_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'wallet-state.json');
+const LEGACY_STATE_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'wallet-state.json');
 
-async function readState(): Promise<Record<string, StoredWallet>> {
+function stateFile(env: Env): string {
+  return env.MOCHI_DATA_DIR ? join(env.MOCHI_DATA_DIR, 'wallet-state.json') : LEGACY_STATE_FILE;
+}
+
+async function readState(env: Env): Promise<Record<string, StoredWallet>> {
   try {
-    const raw = await fs.readFile(STATE_FILE, 'utf8');
+    const raw = await fs.readFile(stateFile(env), 'utf8');
     return JSON.parse(raw) as Record<string, StoredWallet>;
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    // Migrate an existing local record on first use when a persistent data
+    // directory is configured. ECS tasks are replaced during deployments, so
+    // new and updated wallet records must live on the mounted EFS volume.
+    if (env.MOCHI_DATA_DIR) {
+      try {
+        const raw = await fs.readFile(LEGACY_STATE_FILE, 'utf8');
+        const legacy = JSON.parse(raw) as Record<string, StoredWallet>;
+        await writeState(legacy, env);
+        return legacy;
+      } catch (legacyError) {
+        if ((legacyError as NodeJS.ErrnoException).code !== 'ENOENT') throw legacyError;
+      }
+    }
     return {};
   }
 }
 
-async function writeState(state: Record<string, StoredWallet>): Promise<void> {
-  await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+async function writeState(state: Record<string, StoredWallet>, env: Env): Promise<void> {
+  const file = stateFile(env);
+  await fs.mkdir(dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify(state, null, 2), 'utf8');
 }
 
 /** Lazily create the Privy server client. Returns null when not configured. */
@@ -108,7 +128,7 @@ export async function createOrLoadWallet(
   env: Env,
   userId: string,
 ): Promise<{ wallet: StoredWallet; isNew: boolean; mode: 'privy' | 'local' | 'readonly' }> {
-  const state = await readState();
+  const state = await readState(env);
   const existing = state[userId];
   if (existing) {
     const mode = existing.walletId.startsWith('local:') ? 'local' : existing.walletId.startsWith('readonly:') ? 'readonly' : 'privy';
@@ -128,7 +148,7 @@ export async function createOrLoadWallet(
         createdAt: new Date().toISOString(),
       };
       state[userId] = wallet;
-      await writeState(state);
+      await writeState(state, env);
       return { wallet, isNew: true, mode: 'privy' };
     } catch (err) {
       console.error('[privy] createWallet failed, falling back:', err instanceof Error ? err.message : err);
@@ -145,7 +165,7 @@ export async function createOrLoadWallet(
       createdAt: new Date().toISOString(),
     };
     state[userId] = wallet;
-    await writeState(state);
+    await writeState(state, env);
     return { wallet, isNew: true, mode: 'local' };
   }
 
@@ -158,7 +178,7 @@ export async function createOrLoadWallet(
       createdAt: new Date().toISOString(),
     };
     state[userId] = wallet;
-    await writeState(state);
+    await writeState(state, env);
     return { wallet, isNew: true, mode: 'readonly' };
   }
 
@@ -172,32 +192,33 @@ export async function createOrLoadWallet(
     createdAt: new Date().toISOString(),
   };
   state[userId] = wallet;
-  await writeState(state);
+  await writeState(state, env);
   return { wallet, isNew: true, mode: 'readonly' };
 }
 
-export async function getStoredWallet(userId: string): Promise<StoredWallet | null> {
-  const state = await readState();
+export async function getStoredWallet(userId: string, env: Env): Promise<StoredWallet | null> {
+  const state = await readState(env);
   return state[userId] ?? null;
 }
 
 export async function getDefaultWallet(_env: Env): Promise<StoredWallet | null> {
-  const state = await readState();
+  const state = await readState(_env);
   const keys = Object.keys(state);
   if (keys.length === 0) return null;
   return state[keys[0]];
 }
 
 export async function importWalletRecord(
+  env: Env,
   userId: string,
   address: string,
   walletId: string,
   network: string,
 ): Promise<StoredWallet> {
-  const state = await readState();
+  const state = await readState(env);
   const wallet: StoredWallet = { userId, walletId, address, network, createdAt: new Date().toISOString() };
   state[userId] = wallet;
-  await writeState(state);
+  await writeState(state, env);
   return wallet;
 }
 
