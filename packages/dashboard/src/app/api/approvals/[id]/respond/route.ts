@@ -16,6 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   const rec = getApproval(id);
   if (!rec) return NextResponse.json({ ok: false, error: 'not found' }, { status: 404 });
+  if (rec.userId !== (actor.walletUserId ?? actor.id)) return NextResponse.json({ ok: false, error: 'not found' }, { status: 404 });
   if (rec.status !== 'pending') {
     return NextResponse.json({ ok: false, error: `already ${rec.status}`, approval: rec }, { status: 409 });
   }

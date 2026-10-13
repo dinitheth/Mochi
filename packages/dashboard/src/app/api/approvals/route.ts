@@ -4,7 +4,9 @@ import { dashboardActorFromRequest, dashboardApproverCount, isDashboardSessionRe
 
 export async function GET(req: NextRequest) {
   if (!isDashboardSessionRequest(req)) return unauthorized();
-  return NextResponse.json({ ok: true, approvals: listApprovals(), viewer: dashboardActorFromRequest(req) });
+  const viewer = dashboardActorFromRequest(req);
+  if (!viewer) return unauthorized();
+  return NextResponse.json({ ok: true, approvals: listApprovals(viewer.walletUserId ?? viewer.id), viewer });
 }
 
 export async function POST(req: NextRequest) {
@@ -12,6 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
       requestId?: string;
+      userId?: string;
       action?: string;
       details?: Record<string, unknown>;
       valueWei?: string;
@@ -32,6 +35,7 @@ export async function POST(req: NextRequest) {
     }
     const rec = createApproval({
       requestId: body.requestId,
+      userId: body.userId,
       action: body.action,
       details: body.details ?? {},
       valueWei: body.valueWei ?? '0',

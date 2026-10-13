@@ -33,6 +33,7 @@ interface AuthorizationRequest {
   challenge: string; resource: string; scope: string[]; csrfCookie: string; requestId: string; expiresAt: number;
   actor?: OAuthActor;
   cookieName?: string;
+  mode?: 'dashboard_login';
 }
 
 const READ_SCOPE = 'mochi:read';
@@ -341,6 +342,16 @@ export function registerOAuthRoutes(app: import('express').Express, env: Env): v
         ...(walletUserId ? { walletUserId } : {}),
         authVersion: hmac(env.DASHBOARD_SESSION_SECRET, `cognito:${payload.sub}:${walletUserId ?? ''}`),
       };
+      if (pending.authorization.mode === 'dashboard_login') {
+        const expiry = Math.floor(Date.now() / 1000) + 12 * 60 * 60;
+        const sessionPayload = base64url(JSON.stringify({ expiry, id: actor.id, role: actor.role, provider: actor.provider,
+          ...(actor.walletUserId ? { walletUserId: actor.walletUserId } : {}) }));
+        const session = `${sessionPayload}.${hmac(env.DASHBOARD_SESSION_SECRET, sessionPayload)}`;
+        res.cookie('monadmcp_dashboard_session', session, {
+          httpOnly: true, secure: true, sameSite: 'lax', maxAge: 12 * 60 * 60 * 1000, path: '/',
+        });
+        return res.redirect(302, '/');
+      }
       const authorization = { ...pending.authorization, actor };
       const cookieName = authorization.cookieName;
       if (!cookieName) throw new Error('OAuth browser session was not retained.');
@@ -350,6 +361,35 @@ export function registerOAuthRoutes(app: import('express').Express, env: Env): v
       console.error('[oauth] identity callback rejected; details omitted', error instanceof Error ? error.message : 'unknown error');
       return res.status(401).send(page('Mochi sign-in failed', '<h1>Could not verify your Mochi sign-in</h1><p class="muted">Return to ChatGPT and try again.</p>'));
     }
+  }));
+
+  // The Mochi dashboard uses the same Cognito account as the ChatGPT connector.
+  // Keep the full authorization-code + PKCE + nonce flow server-side, then return
+  // a signed, HttpOnly dashboard session to the browser.
+  app.get('/oauth/dashboard/login', asyncHandler(async (req, res) => {
+    if (!oauthReady(env) || !env.COGNITO_DOMAIN || !env.COGNITO_CLIENT_ID || !env.COGNITO_CALLBACK_URL) {
+      return res.status(503).send(page('Sign-in unavailable', '<h1>Sign-in is unavailable</h1><p class="muted">Please try again later.</p>'));
+    }
+    const provider = req.query.provider === 'Google' ? 'Google' : undefined;
+    const identityState = randomBytes(32).toString('base64url');
+    const nonce = randomBytes(32).toString('base64url');
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
+    const now = Math.floor(Date.now() / 1000);
+    const authorization: AuthorizationRequest = {
+      clientId: 'mochi-dashboard', redirectUri: '/', responseType: 'code', state: identityState,
+      challenge: codeChallenge, resource: '', scope: [], csrfCookie: '', requestId: randomBytes(32).toString('base64url'),
+      expiresAt: now + 10 * 60, mode: 'dashboard_login',
+    };
+    await withState(env, (state) => {
+      state.identityRequests[identityState] = { authorization, codeVerifier, nonce, expiresAt: authorization.expiresAt };
+    });
+    const login = new URL(`${env.COGNITO_DOMAIN.replace(/\/$/, '')}/oauth2/authorize`);
+    login.search = new URLSearchParams({ response_type: 'code', client_id: env.COGNITO_CLIENT_ID,
+      redirect_uri: env.COGNITO_CALLBACK_URL, scope: 'openid email profile', state: identityState,
+      nonce, code_challenge: codeChallenge, code_challenge_method: 'S256',
+      ...(provider ? { identity_provider: provider } : {}) }).toString();
+    return res.redirect(302, login.toString());
   }));
 
   // DCR lets ChatGPT register its own public PKCE client for this Mochi server.

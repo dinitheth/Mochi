@@ -2,6 +2,7 @@ export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
 export interface ApprovalRecord {
   requestId: string;
+  userId: string;
   action: string;
   details: Record<string, unknown>;
   valueWei: string;
@@ -27,6 +28,7 @@ function gc(): void {
 
 export function createApproval(input: {
   requestId: string;
+  userId?: string;
   action: string;
   details: Record<string, unknown>;
   valueWei: string;
@@ -37,6 +39,7 @@ export function createApproval(input: {
   gc();
   const rec: ApprovalRecord = {
     requestId: input.requestId,
+    userId: input.userId ?? 'owner',
     action: input.action,
     details: input.details ?? {},
     valueWei: input.valueWei,
@@ -56,9 +59,9 @@ export function getApproval(id: string): ApprovalRecord | null {
   return store.get(id) ?? null;
 }
 
-export function listApprovals(): ApprovalRecord[] {
+export function listApprovals(userId?: string): ApprovalRecord[] {
   gc();
-  return [...store.values()].sort((a, b) => b.timestamp - a.timestamp);
+  return [...store.values()].filter((record) => userId === undefined || record.userId === userId).sort((a, b) => b.timestamp - a.timestamp);
 }
 
 export function decideApproval(id: string, decision: 'approved' | 'rejected', actorId = 'owner'): ApprovalRecord | null {

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { cookies, headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import AutoApproveSwitch from '@/components/AutoApproveSwitch';
-import DashboardLogin from '@/components/DashboardLogin';
 import { isValidDashboardSession, SESSION_COOKIE } from '@/lib/auth';
 import './globals.css';
 
@@ -19,14 +19,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()]);
   const publicPage = requestHeaders.get('x-mochi-public-page') === '1';
   const authenticated = publicPage || isValidDashboardSession(cookieStore.get(SESSION_COOKIE)?.value);
+  if (!authenticated) redirect('/oauth/dashboard/login');
   return (
     <html lang="en">
       <body className="min-h-screen">
         <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
           {publicPage ? (
             children
-          ) : !authenticated ? (
-            <DashboardLogin />
           ) : (
             <>
               <header className="flex flex-col gap-3 mb-4 sm:mb-6">

@@ -92,6 +92,7 @@ export async function approvalGate(req: ApprovalRequest): Promise<ApprovalOutcom
   const requestId = randomUUID();
   const payload = {
     requestId,
+    userId: req.userId ?? 'owner',
     action: req.action,
     details: req.details,
     valueWei: req.valueWei.toString(),

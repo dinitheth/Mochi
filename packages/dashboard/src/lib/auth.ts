@@ -48,7 +48,7 @@ export function authenticateDashboardPassword(password: string): Omit<DashboardM
   return member ? { id: member.id, role: member.role } : null;
 }
 
-interface DashboardActor { id: string; role: DashboardRole }
+export interface DashboardActor { id: string; role: DashboardRole; provider?: 'cognito'; walletUserId?: string }
 
 export function createDashboardSession(actor: DashboardActor = { id: 'owner', role: 'admin' }): { value: string; maxAge: number } | null {
   const expiry = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
@@ -64,8 +64,13 @@ export function getDashboardSessionActor(value?: string): DashboardActor | null 
   const expected = signature(payload);
   if (!expected || !safeEqual(supplied, expected)) return null;
   try {
-    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { expiry?: number; id?: string; role?: DashboardRole };
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { expiry?: number; id?: string; role?: DashboardRole; provider?: 'cognito'; walletUserId?: string };
     if (!parsed.expiry || parsed.expiry <= Math.floor(Date.now() / 1000) || !parsed.id || !['admin', 'approver', 'preparer', 'viewer'].includes(parsed.role ?? '')) return null;
+    if (parsed.provider === 'cognito') {
+      if (!parsed.id.startsWith('user_') || parsed.role !== 'admin'
+        || (parsed.walletUserId !== undefined && parsed.walletUserId !== 'owner')) return null;
+      return { id: parsed.id, role: parsed.role!, provider: 'cognito', ...(parsed.walletUserId ? { walletUserId: parsed.walletUserId } : {}) };
+    }
     const member = teamMembers().find((candidate) => candidate.id === parsed.id);
     if (!member || member.role !== parsed.role) return null;
     return { id: parsed.id, role: parsed.role! };

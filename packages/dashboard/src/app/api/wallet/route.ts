@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { NextResponse } from 'next/server';
 import { activeNetwork, ethGetBalance, NETWORKS, weiToMon } from '@/lib/monad';
-import { isDashboardSessionRequest, unauthorized } from '@/lib/auth';
+import { dashboardActorFromRequest, isDashboardSessionRequest, unauthorized } from '@/lib/auth';
 
 interface StoredWallet {
   userId: string;
@@ -29,11 +29,14 @@ async function loadWallets(): Promise<Record<string, StoredWallet>> {
 
 export async function GET(req: Request) {
   if (!isDashboardSessionRequest(req)) return unauthorized();
+  const actor = dashboardActorFromRequest(req);
+  if (!actor) return unauthorized();
   const network = activeNetwork();
   const meta = NETWORKS[network];
   const wallets = await loadWallets();
-  const first = Object.values(wallets)[0] ?? null;
-  const address = first?.address ?? process.env.AGENT_ADDRESS ?? null;
+  const userId = actor.walletUserId ?? actor.id;
+  const first = wallets[userId] ?? Object.values(wallets).find((wallet) => wallet.userId === userId) ?? null;
+  const address = first?.address ?? (userId === 'owner' ? process.env.AGENT_ADDRESS ?? null : null);
 
   let balanceWei = '0';
   let balanceMON = '0';
@@ -58,6 +61,6 @@ export async function GET(req: Request) {
     balanceWei,
     balanceMON,
     explorerUrl: address ? `${meta.explorerUrl}/address/${address}` : meta.explorerUrl,
-    walletCount: Object.keys(wallets).length,
+    walletCount: first ? 1 : 0,
   });
 }
