@@ -32,7 +32,7 @@ function normalizeUserCopy(value: unknown, field?: string): unknown {
     key, key === 'error' && nested ? friendlyFailure(nested) : normalizeUserCopy(nested, key),
   ]));
   if (typeof value !== 'string') return value;
-  if (field === 'summary' && /\b(?:wei|function selector|execution method|calldata|pre-flight|simulation failed|HTTP \d{3}|RPC error|mcp__[\w_]+|0x[\da-f]{8,})\b/i.test(value)) {
+  if (field === 'summary' && /\b(?:wei|function selector|execution method|calldata|pre-flight|simulation failed|HTTP \d{3}|RPC error|mcp__[\w_]+)\b/i.test(value)) {
     return friendlyFailure(value);
   }
   return value;
