@@ -203,6 +203,11 @@ export function registerWalletTools(server: McpServer, env: Env): void {
           summary: `Agent wallet: ${wallet.address} on ${NETWORK_META[env.MONAD_NETWORK].name} (${explorerAddressUrl(env, wallet.address)})`,
         });
       } catch (err) {
+        console.error('[wallet] address lookup failed', {
+          name: err instanceof Error ? err.name : typeof err,
+          code: err && typeof err === 'object' && 'code' in err ? String(err.code) : undefined,
+          reason: err instanceof Error ? err.message.replace(/userId\s+"[^"]+"/gi, 'userId "[redacted]"') : 'Unknown error',
+        });
         return textResult({ ok: false, error: err instanceof Error ? err.message : String(err) });
       }
     },

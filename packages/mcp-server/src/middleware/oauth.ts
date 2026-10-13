@@ -704,6 +704,12 @@ export function oauthMcpAuthorization(env: Env): RequestHandler {
       // to the authenticated Mochi identity before it reaches a handler.
       if (!req.body.params.arguments || typeof req.body.params.arguments !== 'object' || Array.isArray(req.body.params.arguments)) req.body.params.arguments = {};
       req.body.params.arguments.userId = claims.walletUserId ?? claims.sub;
+      console.info('[mcp] tool call authorized', {
+        tool: name,
+        walletIdentity: claims.walletUserId === 'owner' ? 'legacy-owner' : 'account',
+      });
+    } else if (req.method === 'POST') {
+      console.info('[mcp] request authorized', { method: req.body?.method ?? 'unknown' });
     }
     next();
   };
