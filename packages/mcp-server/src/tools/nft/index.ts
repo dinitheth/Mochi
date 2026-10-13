@@ -12,6 +12,7 @@ import { auditLog } from '../../middleware/audit-log.js';
 import { ERC721_ABI, addTool, assertAddress, formatTokenUnits, resolveWallet, textResult } from '../shared.js';
 import { simulateTx, type SimResult } from '../../middleware/simulate.js';
 import { getOpenSeaNativeBuyTransaction, listOpenSeaMonadListings } from '../../integrations/opensea.js';
+import { OPENSEA_URI } from '../../apps/widgets.js';
 
 const MARKET_ABI = [
   {
@@ -158,7 +159,7 @@ export function registerNFTTools(server: McpServer, env: Env): void {
   addTool(
     server,
     'nft_opensea_listings',
-    'Find active Monad NFT listings for an OpenSea collection. Read-only discovery; does not buy or prepare a transaction.',
+    'Find active Monad NFT listings for an OpenSea collection. Show every result as an individual card with its image, name, asking price, collection floor, and OpenSea link. Prices are asking prices, not completed sales. Read-only.',
     {
       collectionSlug: z.string().min(1).max(100).describe('OpenSea collection slug from opensea.io/collection/...'),
       limit: z.number().int().min(1).max(50).default(10).describe('Maximum active Monad listings to return'),
@@ -166,24 +167,33 @@ export function registerNFTTools(server: McpServer, env: Env): void {
     async ({ collectionSlug, limit }: { collectionSlug: string; limit: number }) => {
       try {
         if (env.MONAD_NETWORK !== 'mainnet') throw new Error('OpenSea Monad listings are available only when MONAD_NETWORK=mainnet.');
-        const listings = await listOpenSeaMonadListings(env, collectionSlug, limit);
+        const rawListings = await listOpenSeaMonadListings(env, collectionSlug, limit);
+        const listings = rawListings.map((item) => ({
+          ...item,
+          priceMON: formatTokenUnits(BigInt(item.priceRaw), item.currencyDecimals),
+        }));
         await auditLog({ tool: 'nft_opensea_listings', result: 'ok', params: { collectionSlug, limit, resultCount: listings.length, network: 'mainnet' } });
-        return textResult({
+        const result = {
           ok: true,
           provider: 'OpenSea',
-          network: 'Monad mainnet (143)',
+          network: 'Monad',
           collectionSlug,
           listings,
           summary: listings.length
-            ? `Found ${listings.length} active Monad listing${listings.length === 1 ? '' : 's'} for ${collectionSlug} on OpenSea. Read-only market data; verify again before purchase.`
-            : `No active Monad listings were returned for ${collectionSlug}.`,
-        });
+            ? `Found ${listings.length} NFT${listings.length === 1 ? '' : 's'} currently listed in ${collectionSlug}. Each price is the seller’s asking price; listings can change and do not show completed sales.`
+            : `No NFTs from ${collectionSlug} are currently listed on Monad.`,
+        };
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          structuredContent: result,
+        };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         await auditLog({ tool: 'nft_opensea_listings', result: 'error', error: message, params: { collectionSlug } });
         return textResult({ ok: false, error: message });
       }
     },
+    { _meta: { ui: { resourceUri: OPENSEA_URI }, 'openai/outputTemplate': OPENSEA_URI, 'openai/toolInvocation/invoking': 'Finding NFTs on OpenSea…', 'openai/toolInvocation/invoked': 'NFT listings are ready.' } },
   );
 
   addTool(
@@ -286,6 +296,7 @@ export function registerNFTTools(server: McpServer, env: Env): void {
         return textResult({ ok: false, error: message });
       }
     },
+    { outputSchema: z.object({}).passthrough(), _meta: { ui: { resourceUri: OPENSEA_URI }, 'openai/outputTemplate': OPENSEA_URI, 'openai/toolInvocation/invoking': 'Finding NFTs on OpenSea…', 'openai/toolInvocation/invoked': 'NFT listings are ready.' } },
   );
 
   addTool(

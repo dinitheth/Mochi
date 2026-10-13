@@ -4,6 +4,11 @@ const API_BASE = 'https://api.opensea.io/api/v2';
 
 export interface OpenSeaListing {
   collectionSlug: string;
+  collectionName: string;
+  name: string;
+  imageUrl: string | null;
+  floorPrice: number | null;
+  floorCurrency: string | null;
   orderHash: string;
   contractAddress: string;
   tokenId: string;
@@ -155,6 +160,11 @@ export async function listOpenSeaMonadListings(
     ) continue;
     out.push({
       collectionSlug: slug,
+      collectionName: slug,
+      name: `NFT #${asset.identifier}`,
+      imageUrl: null,
+      floorPrice: null,
+      floorCurrency: null,
       orderHash: listing.order_hash,
       contractAddress: asset.contract,
       tokenId: asset.identifier,
@@ -166,6 +176,27 @@ export async function listOpenSeaMonadListings(
         : null,
       openseaUrl: `https://opensea.io/collection/${encodeURIComponent(slug)}`,
     });
+  }
+
+  // Enrich each card with OpenSea's public NFT metadata and collection stats.
+  // Metadata is best-effort: listings remain useful if an item has no image or name.
+  const [collectionResponse, ...metadataResponses] = await Promise.all([
+    openSeaRequest(env, `/collections/${encodeURIComponent(slug)}/stats`).catch(() => null),
+    ...out.map((item) => openSeaRequest(env,
+      `/chain/monad/contract/${encodeURIComponent(item.contractAddress)}/nfts/${encodeURIComponent(item.tokenId)}`,
+    ).catch(() => null)),
+  ]);
+  const stats = record(record(collectionResponse)?.total);
+  const floorPrice = typeof stats?.floor_price === 'number' && Number.isFinite(stats.floor_price) ? stats.floor_price : null;
+  const floorCurrency = typeof stats?.floor_price_symbol === 'string' ? stats.floor_price_symbol : null;
+  for (let i = 0; i < out.length; i++) {
+    out[i]!.floorPrice = floorPrice;
+    out[i]!.floorCurrency = floorCurrency;
+    const nft = record(record(metadataResponses[i])?.nft);
+    if (typeof nft?.name === 'string' && nft.name.trim()) out[i]!.name = nft.name.trim();
+    const image = nft?.display_image_url ?? nft?.image_url ?? nft?.original_image_url;
+    if (typeof image === 'string' && /^https?:\/\//i.test(image)) out[i]!.imageUrl = image;
+    if (typeof nft?.collection === 'string' && nft.collection.trim()) out[i]!.collectionName = nft.collection.trim();
   }
   return out;
 }

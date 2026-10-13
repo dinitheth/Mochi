@@ -10,8 +10,32 @@ function isAddress(v: string): boolean {
 }
 
 export function textResult(payload: unknown) {
-  const text = typeof payload === 'string' ? redactConfiguredSecrets(payload) : JSON.stringify(redactPayload(payload), null, 2);
+  const text = typeof payload === 'string' ? redactConfiguredSecrets(payload) : JSON.stringify(normalizeUserCopy(redactPayload(payload)), null, 2);
   return { content: [{ type: 'text' as const, text }] };
+}
+
+function friendlyFailure(value: unknown): string {
+  const message = String(value ?? '');
+  if (/insufficient funds|exceeds? (your )?balance/i.test(message)) return 'There is not enough balance to complete this action, including the network fee.';
+  if (/invalid .*address|address.*invalid/i.test(message)) return 'That wallet address does not look right. Check it and try again.';
+  if (/slippage|price moved|minimum output/i.test(message)) return 'The price changed too much while preparing this swap. Please request a fresh quote.';
+  if (/not listed|listing.*inactive/i.test(message)) return 'This item is no longer available. Refresh the listings and choose another.';
+  if (/expired/i.test(message)) return 'This request has expired. Please start again.';
+  if (/permission|not (the )?owner|not permitted|unauthor/i.test(message)) return 'This action is not available for this account.';
+  if (/timeout|timed out|fetch failed|ECONN|unreachable|network/i.test(message)) return 'Mochi could not reach the service. Check your connection and try again.';
+  return 'Mochi could not complete that request. Please try again. If it keeps happening, contact Mochi support.';
+}
+
+function normalizeUserCopy(value: unknown, field?: string): unknown {
+  if (Array.isArray(value)) return value.map((item) => normalizeUserCopy(item));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, nested]) => [
+    key, key === 'error' && nested ? friendlyFailure(nested) : normalizeUserCopy(nested, key),
+  ]));
+  if (typeof value !== 'string') return value;
+  if (field === 'summary' && /\b(?:wei|function selector|execution method|calldata|pre-flight|simulation failed|HTTP \d{3}|RPC error|mcp__[\w_]+|0x[\da-f]{8,})\b/i.test(value)) {
+    return friendlyFailure(value);
+  }
+  return value;
 }
 
 const SENSITIVE_ENV_NAME = /(?:API_KEY|TOKEN|PASSWORD|SECRET|RPC_URL)$/i;
@@ -117,7 +141,7 @@ const TOOL_META: Record<string, ToolMeta> = {
   wallet_initialize: { title: 'Set up wallet', annotations: { ...WRITE, destructiveHint: false } },
   wallet_get_address: { title: 'Get wallet address', annotations: { ...READONLY } },
   wallet_get_balance: { title: 'Get wallet balance', annotations: { ...READONLY } },
-  wallet_wrap_native: { title: 'Wrap MON into WMON', annotations: { ...MONEY } },
+  wallet_wrap_native: { title: 'Convert MON to WMON', annotations: { ...MONEY } },
   wallet_import: { title: 'Link existing wallet', annotations: { ...WRITE, destructiveHint: false } },
   wallet_portfolio: { title: 'Wallet portfolio (Zerion)', annotations: { ...READONLY } },
   transaction_send_mon: { title: 'Send MON', annotations: { ...MONEY } },
@@ -136,12 +160,12 @@ const TOOL_META: Record<string, ToolMeta> = {
   kintsu_stake_mon: { title: 'Stake MON with Kintsu', annotations: { ...MONEY } },
   kintsu_request_unstake: { title: 'Request Kintsu unlock', annotations: { ...MONEY } },
   perpl_markets: { title: 'Perpl futures markets', annotations: { ...READONLY } },
-  transaction_estimate_gas: { title: 'Estimate gas cost', annotations: { ...READONLY } },
-  transaction_get_status: { title: 'Check transaction status', annotations: { ...READONLY } },
-  transaction_simulate: { title: 'Simulate transaction', annotations: { ...READONLY } },
-  contract_read: { title: 'Read contract', annotations: { ...READONLY } },
-  contract_write: { title: 'Write to contract', annotations: { ...MONEY } },
-  contract_deploy: { title: 'Deploy contract', annotations: { ...MONEY } },
+  transaction_estimate_gas: { title: 'Estimate network fee', annotations: { ...READONLY } },
+  transaction_get_status: { title: 'Check action status', annotations: { ...READONLY } },
+  transaction_simulate: { title: 'Preview action', annotations: { ...READONLY } },
+  contract_read: { title: 'View app information', annotations: { ...READONLY } },
+  contract_write: { title: 'Review app action', annotations: { ...MONEY } },
+  contract_deploy: { title: 'Create an on-chain app', annotations: { ...MONEY } },
   nft_research_collections: { title: 'Research NFT collections', annotations: { ...READONLY } },
   nft_opensea_listings: { title: 'Find OpenSea Monad listings', annotations: { ...READONLY } },
   nft_opensea_buy: { title: 'Buy OpenSea Monad NFT', annotations: { ...MONEY } },
@@ -173,10 +197,10 @@ const TOOL_META: Record<string, ToolMeta> = {
   defi_swap_tokens: { title: 'Swap tokens', annotations: { ...MONEY } },
   uniswap_quote_swap: { title: 'Quote Uniswap swap', annotations: { ...READONLY } },
   uniswap_swap_tokens: { title: 'Swap through Uniswap', annotations: { ...MONEY } },
-  chain_get_network_stats: { title: 'Network stats', annotations: { ...READONLY } },
-  chain_get_block: { title: 'Get block', annotations: { ...READONLY } },
-  chain_get_gas_price: { title: 'Gas price', annotations: { ...READONLY } },
-  chain_get_logs: { title: 'Query event logs', annotations: { ...READONLY } },
+  chain_get_network_stats: { title: 'Network status', annotations: { ...READONLY } },
+  chain_get_block: { title: 'Recent network activity', annotations: { ...READONLY } },
+  chain_get_gas_price: { title: 'Current network fee', annotations: { ...READONLY } },
+  chain_get_logs: { title: 'Recent app activity', annotations: { ...READONLY } },
 };
 
 /** Read-only classification used by remote authorization middleware. Unknown tools fail closed. */

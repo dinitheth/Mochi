@@ -11,6 +11,7 @@
  */
 
 export const MARKETPLACE_URI = 'ui://monadmcp/marketplace/v1';
+export const OPENSEA_URI = 'ui://monadmcp/opensea-listings/v1';
 export const AUCTIONS_URI = 'ui://monadmcp/auctions/v1';
 export const UI_MIME = 'text/html;profile=mcp-app';
 
@@ -97,6 +98,36 @@ export const MARKETPLACE_HTML = shell(
     }
   });
   setTimeout(() => { if (!settled) selfFetch(); }, 1200);
+})();
+  `.trim(),
+);
+
+export const OPENSEA_LISTINGS_HTML = shell(
+  '<h2>OpenSea listings</h2><div id="list" class="grid"></div><div id="msg" class="note">Loading collection listings…</div>',
+  '',
+  `
+(function () {
+  const list = document.getElementById('list');
+  const msg = document.getElementById('msg');
+  function render(items) {
+    if (!Array.isArray(items) || !items.length) { msg.textContent = 'No active listings were found for this collection.'; return; }
+    list.innerHTML = items.map((item) => {
+      const image = item.imageUrl ? '<img loading="lazy" alt="' + esc(item.name || 'NFT') + '" src="' + esc(item.imageUrl) + '" style="aspect-ratio:1;object-fit:cover">' : '<div style="aspect-ratio:1;display:grid;place-items:center;background:#20202c;border-radius:8px;color:#a5a5bd">NFT</div>';
+      const floor = item.floorPrice != null ? '<div class="note">Collection floor: ' + esc(item.floorPrice) + ' ' + esc(item.floorCurrency || 'MON') + '</div>' : '<div class="note">Collection floor unavailable</div>';
+      return '<article class="card">' + image + '<div style="font-weight:700;margin-top:8px">' + esc(item.name || 'NFT') + '</div>' +
+        '<div class="note">' + esc(item.collectionName || item.collectionSlug || 'OpenSea collection') + '</div>' +
+        '<div class="price">' + esc(item.priceRaw ? item.priceMON : 'Price unavailable') + ' ' + esc(item.currency || '') + '</div>' + floor +
+        '<a href="' + esc(item.openseaUrl) + '" target="_blank" rel="noopener noreferrer" style="display:block;color:#a99bff;margin-top:8px">View collection on OpenSea ↗</a></article>';
+    }).join('');
+    msg.textContent = items.length + ' active listing' + (items.length === 1 ? '' : 's') + '. Prices are current asking prices and may change.';
+  }
+  window.addEventListener('message', (event) => {
+    if (event.source !== window.parent) return;
+    const m = event.data;
+    if (!m || m.jsonrpc !== '2.0' || m.id !== undefined || m.method !== 'ui/notifications/tool-result') return;
+    const data = m.params && m.params.structuredContent;
+    if (data && Array.isArray(data.listings)) render(data.listings);
+  });
 })();
   `.trim(),
 );

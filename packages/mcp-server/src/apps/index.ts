@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { AUCTIONS_HTML, AUCTIONS_URI, MARKETPLACE_HTML, MARKETPLACE_URI, PAYMENT_REQUEST_HTML, UI_MIME } from './widgets.js';
+import { AUCTIONS_HTML, AUCTIONS_URI, MARKETPLACE_HTML, MARKETPLACE_URI, OPENSEA_LISTINGS_HTML, OPENSEA_URI, PAYMENT_REQUEST_HTML, UI_MIME } from './widgets.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyServer = any;
@@ -13,7 +13,10 @@ function registerUiResource(server: McpServer, name: string, uri: string, html: 
         uri: u.href,
         mimeType: UI_MIME,
         text: html,
-        _meta: { ui: { prefersBorder: true } },
+        _meta: { ui: {
+          prefersBorder: true,
+          csp: { resourceDomains: ['https://i.seadn.io', 'https://storage.googleapis.com', 'https://ipfs.io', 'https://gateway.pinata.cloud'] },
+        } },
       },
     ],
   });
@@ -33,6 +36,7 @@ function registerUiResource(server: McpServer, name: string, uri: string, html: 
  */
 export function registerAppUI(server: McpServer): void {
   registerUiResource(server, 'monadmcp-marketplace', MARKETPLACE_URI, MARKETPLACE_HTML);
+  registerUiResource(server, 'monadmcp-opensea-listings', OPENSEA_URI, OPENSEA_LISTINGS_HTML);
   registerUiResource(server, 'monadmcp-auctions', AUCTIONS_URI, AUCTIONS_HTML);
   const PAYMENT_REQUEST_URI = 'ui://monadmcp/payments/request/v1';
   registerUiResource(server, 'mochi-payment-request', PAYMENT_REQUEST_URI, PAYMENT_REQUEST_HTML);

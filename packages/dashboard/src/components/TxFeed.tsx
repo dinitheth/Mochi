@@ -17,6 +17,7 @@ const TOOL_TITLES: Record<string, string> = {
   wallet_get_balance: 'Check Balance',
   wallet_import: 'Import Wallet',
   wallet_portfolio: 'Portfolio Overview',
+  wallet_wrap_native: 'Convert MON to WMON',
   transaction_send_mon: 'Send MON',
   transaction_send_token: 'Send Tokens',
   transaction_estimate_gas: 'Estimate Gas',
@@ -38,6 +39,14 @@ const TOOL_TITLES: Record<string, string> = {
   defi_get_token_price: 'Token Price',
   defi_faucet_mint: 'Mint Test Tokens',
   defi_swap_tokens: 'Swap Tokens',
+  uniswap_swap_tokens: 'Swap Tokens',
+  nft_opensea_listings: 'Find NFTs on OpenSea',
+  nft_opensea_buy: 'Buy NFT on OpenSea',
+  payments_send_invoice: 'Pay Invoice',
+  payments_send_payout_batch: 'Send Payments',
+  payments_refund_request: 'Refund Payment',
+  kintsu_stake_mon: 'Stake MON',
+  kintsu_request_unstake: 'Request Unstaking',
   chain_get_network_stats: 'Network Stats',
   chain_get_block: 'Block Info',
   chain_get_gas_price: 'Gas Price',
@@ -54,7 +63,14 @@ const TOOL_TITLES: Record<string, string> = {
 
 function titleFor(tool?: string): string {
   if (!tool) return 'Activity';
-  return TOOL_TITLES[tool] ?? tool;
+  return TOOL_TITLES[tool] ?? 'Mochi action';
+}
+
+function statusFor(status?: string): string {
+  if (status === 'ok' || status === 'success') return 'Completed';
+  if (status === 'rejected' || status === 'failed' || status === 'error') return 'Needs attention';
+  if (status === 'pending') return 'In progress';
+  return 'Updated';
 }
 
 function shortHash(h: string): string {
@@ -73,25 +89,25 @@ function shortenAddresses(text: string): string {
 const ERROR_SHORTCUTS: Array<[RegExp, string]> = [
   [/exceeds the balance|insufficient funds/i, 'Insufficient funds'],
   [/invalid.*address|invalid address|address.*"0x/i, 'Invalid address'],
-  [/execution reverted|reverted/i, 'Transaction would revert'],
+  [/execution reverted|reverted/i, 'This action could not be completed. Check the details and try again.'],
   [/below reserve/i, 'Below reserve price'],
   [/not listed|not actively listed/i, 'Not listed'],
   [/already ended|auction.*ended/i, 'Auction ended'],
   [/already settled|settled/i, 'Already settled'],
   [/no auction|does not exist/i, 'Not found'],
-  [/allowance/i, 'Allowance too low'],
+  [/allowance/i, 'Token approval is needed before this swap.'],
   [/not (the )?owner|not seller|not buyer|not borrower/i, 'Not permitted'],
   [/expired/i, 'Expired'],
-  [/slippage/i, 'Slippage too high'],
-  [/no signer|no wallet|not configured/i, 'Wallet not ready'],
-  [/webhook|unreachable|ECONNREFUSED|fetch failed|timeout|timed out/i, 'Network issue — retry'],
+  [/slippage/i, 'The price changed. Refresh the quote and try again.'],
+  [/no signer|no wallet|not configured/i, 'Set up or connect your wallet first.'],
+  [/webhook|unreachable|ECONNREFUSED|fetch failed|timeout|timed out/i, 'Mochi could not connect. Check your connection and try again.'],
 ];
 
 function shortError(msg: string): string {
   for (const [re, label] of ERROR_SHORTCUTS) {
     if (re.test(msg)) return label;
   }
-  return msg.length > 90 ? msg.slice(0, 87) + '…' : msg;
+  return 'Mochi could not complete this action. Please try again.';
 }
 
 export default function TxFeed() {
@@ -118,7 +134,7 @@ export default function TxFeed() {
 
   return (
     <div className="rounded-xl bg-panel p-5 border border-white/10">
-      <h2 className="text-sm font-semibold tracking-wide text-white/70">LIVE AGENT ACTIVITY</h2>
+      <h2 className="text-sm font-semibold tracking-wide text-white/70">RECENT ACTIVITY</h2>
       {entries.length === 0 ? (
         <p className="mt-3 text-sm text-white/50">No agent actions yet. Activity appears here in real time.</p>
       ) : (
@@ -136,7 +152,7 @@ export default function TxFeed() {
                         : 'bg-yellow-500/15 text-yellow-300'
                   }`}
                 >
-                  {e.result ?? '—'}
+                  {statusFor(e.result)}
                 </span>
               </div>
               {e.intent ? (
