@@ -3,6 +3,8 @@ import type { Env } from '../config/env.js';
 
 /** Canonical 0x AllowanceHolder for Monad (chain 143), per the 0x contract docs. */
 export const ZEROEX_ALLOWANCE_HOLDER = '0x0000000000001fF3684f28c67538d4D072C22734' as const;
+/** 0x standard native-token sentinel used for MON on Monad. */
+export const ZEROEX_NATIVE_TOKEN = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as const;
 
 export interface ZeroExSwapQuote {
   allowanceTarget: string;
@@ -37,7 +39,7 @@ function requireUnsignedInteger(value: unknown, field: string): string {
 }
 
 function requireAddress(value: unknown, field: string): string {
-  if (typeof value !== 'string' || !isAddress(value)) {
+  if (typeof value !== 'string' || !isAddress(value, { strict: false })) {
     throw new Error(`0x returned an invalid ${field} address.`);
   }
   return getAddress(value);

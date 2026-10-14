@@ -24,12 +24,12 @@ function addResource(server: McpServer, name: string, uri: string, description: 
 export function registerResources(server: McpServer, env: Env): void {
   addResource(server, 'monad-mainnet', 'monad://network/mainnet', 'Monad mainnet config', 'application/json', async () => {
     const m = NETWORK_META.mainnet;
-    return JSON.stringify({ network: 'mainnet', chainId: m.chainId, rpcEndpointConfigured: Boolean(env.MONAD_MAINNET_RPC_URL), explorerUrl: m.explorerUrl, currency: m.currency, wmon: m.wmon }, null, 2);
+    return JSON.stringify({ network: 'mainnet', rpcEndpointConfigured: Boolean(env.MONAD_MAINNET_RPC_URL), explorerUrl: m.explorerUrl, currency: m.currency, wmon: m.wmon }, null, 2);
   });
 
   addResource(server, 'monad-testnet', 'monad://network/testnet', 'Monad testnet config', 'application/json', async () => {
     const m = NETWORK_META.testnet;
-    return JSON.stringify({ network: 'testnet', chainId: m.chainId, rpcEndpointConfigured: Boolean(env.MONAD_RPC_URL), explorerUrl: m.explorerUrl, currency: m.currency, faucet: m.faucet, wmon: m.wmon }, null, 2);
+    return JSON.stringify({ network: 'testnet', rpcEndpointConfigured: Boolean(env.MONAD_RPC_URL), explorerUrl: m.explorerUrl, currency: m.currency, faucet: m.faucet, wmon: m.wmon }, null, 2);
   });
 
   addResource(server, 'wallet-status', 'monad://wallet/status', 'Current agent wallet address and balance', 'application/json', async () => {

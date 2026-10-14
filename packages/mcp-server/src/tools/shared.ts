@@ -10,12 +10,17 @@ function isAddress(v: string): boolean {
 }
 
 export function textResult(payload: unknown) {
-  const text = typeof payload === 'string' ? redactConfiguredSecrets(payload) : JSON.stringify(normalizeUserCopy(redactPayload(payload)), null, 2);
+  const text = typeof payload === 'string'
+    ? String(normalizeUserCopy(redactConfiguredSecrets(payload)))
+    : JSON.stringify(normalizeUserCopy(redactPayload(payload)), null, 2);
   return { content: [{ type: 'text' as const, text }] };
 }
 
 function friendlyFailure(value: unknown): string {
   const message = String(value ?? '');
+  if (/no available liquidity|no route available|could not find.*route/i.test(message)) return 'Mochi could not find a suitable route for this pair right now. Try a different token pair or request a fresh quote.';
+  if (/unverified.*(?:router|target)|router.*allowlist|unexpected transaction target/i.test(message)) return 'Mochi could not safely use that swap route. Your funds were not swapped; request a fresh quote to try another verified route.';
+  if (/simulation|execution reverted|transaction reverted|pre-flight/i.test(message)) return 'Mochi could not safely complete the swap. Check your wallet activity before trying again, because a separate token approval may already have completed.';
   if (/insufficient funds|exceeds? (your )?balance/i.test(message)) return 'There is not enough balance to complete this action, including the network fee.';
   if (/invalid .*address|address.*invalid/i.test(message)) return 'That wallet address does not look right. Check it and try again.';
   if (/slippage|price moved|minimum output/i.test(message)) return 'The price changed too much while preparing this swap. Please request a fresh quote.';
@@ -28,14 +33,20 @@ function friendlyFailure(value: unknown): string {
 
 function normalizeUserCopy(value: unknown, field?: string): unknown {
   if (Array.isArray(value)) return value.map((item) => normalizeUserCopy(item));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, nested]) => [
-    key, key === 'error' && nested ? friendlyFailure(nested) : normalizeUserCopy(nested, key),
-  ]));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => key.toLowerCase().replace(/[^a-z]/g, '') !== 'chainid')
+    .map(([key, nested]) => [key, key === 'error' && nested ? friendlyFailure(nested) : normalizeUserCopy(nested, key)]));
   if (typeof value !== 'string') return value;
-  if (field === 'summary' && /\b(?:wei|function selector|execution method|calldata|pre-flight|simulation failed|HTTP \d{3}|RPC error|mcp__[\w_]+)\b/i.test(value)) {
-    return friendlyFailure(value);
+  const normalized = value
+    .replace(/\b(?:Monad(?:\s+mainnet)?|mainnet)\s*\(\s*143\s*\)/gi, 'Monad')
+    .replace(/\bMonad\s+mainnet\s*[·,-]?\s*chain\s*ID\s*[:#]?\s*143\b/gi, 'Monad mainnet')
+    .replace(/\bchain(?:\s*ID)?\s*[:#]?\s*143\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  if (field === 'summary' && /\b(?:wei|function selector|execution method|calldata|pre-flight|simulation failed|HTTP \d{3}|RPC error|mcp__[\w_]+)\b/i.test(normalized)) {
+    return friendlyFailure(normalized);
   }
-  return value;
+  return normalized;
 }
 
 const SENSITIVE_ENV_NAME = /(?:API_KEY|TOKEN|PASSWORD|SECRET|RPC_URL)$/i;

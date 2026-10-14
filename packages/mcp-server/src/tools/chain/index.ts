@@ -12,7 +12,7 @@ export function registerChainTools(server: McpServer, env: Env): void {
   addTool(
     server,
     'chain_get_network_stats',
-    'Live Monad network stats: latest block, gas price, chain id, and explorer.',
+    'Live Monad network stats: latest block, gas price, and explorer.',
     {},
     async () => {
       try {

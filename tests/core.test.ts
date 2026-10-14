@@ -32,6 +32,14 @@ describe('Monad network metadata', () => {
 });
 
 describe('private RPC credential handling', () => {
+  it('keeps internal network numbers out of wallet-facing results', () => {
+    const result = textResult({ chainId: 143, network: 'Monad mainnet (143)', summary: 'Monad mainnet · Chain ID 143' });
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.chainId).toBeUndefined();
+    expect(payload.network).toBe('Monad');
+    expect(payload.summary).not.toMatch(/143|chain id/i);
+  });
+
   it('redacts configured secret values and endpoint fields from MCP text results', () => {
     const rpcUrl = 'https://rpc.example.invalid/private-token';
     vi.stubEnv('MONAD_MAINNET_RPC_URL', rpcUrl);
@@ -74,7 +82,8 @@ describe('private RPC credential handling', () => {
     const mainnet = registered.find((resource) => resource.name === 'monad-mainnet');
     const result = await mainnet!.read(new URL('monad://network/mainnet'));
     expect(result.contents[0].text).not.toContain(rpcUrl);
-    expect(JSON.parse(result.contents[0].text)).toMatchObject({ rpcEndpointConfigured: true, chainId: 143 });
+    expect(JSON.parse(result.contents[0].text)).toMatchObject({ rpcEndpointConfigured: true });
+    expect(result.contents[0].text).not.toContain('chainId');
   });
 });
 

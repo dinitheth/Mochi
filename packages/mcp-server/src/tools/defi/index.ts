@@ -9,7 +9,7 @@ import { approvalGate } from '../../middleware/approval-gate.js';
 import { auditLog } from '../../middleware/audit-log.js';
 import { ERC20_ABI, addTool, assertAddress, formatTokenUnits, resolveWallet, textResult } from '../shared.js';
 import { simulateTx } from '../../middleware/simulate.js';
-import { getZeroExSwapQuote, ZEROEX_ALLOWANCE_HOLDER } from '../../integrations/zeroex.js';
+import { getZeroExSwapQuote, ZEROEX_ALLOWANCE_HOLDER, ZEROEX_NATIVE_TOKEN } from '../../integrations/zeroex.js';
 import { fetchMonadTokenFlows, fetchMonadTokenScreen } from '../../integrations/nansen.js';
 import { fetchZerionMonadTokenPosition } from '../../integrations/zerion.js';
 import { hyperSyncLogs } from '../../config/hypersync.js';
@@ -115,6 +115,18 @@ function asAddress(value: string, label: string): `0x${string}` {
   return value as `0x${string}`;
 }
 
+const MAINNET_TOKEN_ALIASES: Record<string, `0x${string}`> = {
+  mon: ZEROEX_NATIVE_TOKEN,
+  wmon: NETWORK_META.mainnet.wmon,
+  usdc: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
+  ausd: '0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a',
+};
+
+function resolveMainnetToken(value: string, label: string): `0x${string}` {
+  const alias = MAINNET_TOKEN_ALIASES[value.trim().toLowerCase()];
+  return alias ?? asAddress(value, label);
+}
+
 async function executeMainnetZeroExSwap(input: {
   env: Env;
   tokenIn: string;
@@ -125,9 +137,11 @@ async function executeMainnetZeroExSwap(input: {
 }): Promise<ReturnType<typeof textResult>> {
   const { env, tokenIn, tokenOut, amountIn, slippageTolerance, userId } = input;
   if (env.MONAD_NETWORK !== 'mainnet') throw new Error('The 0x adapter is mainnet-only.');
-  const tokenInAddress = asAddress(tokenIn, 'tokenIn');
-  const tokenOutAddress = asAddress(tokenOut, 'tokenOut');
+  const tokenInAddress = resolveMainnetToken(tokenIn, 'tokenIn');
+  const tokenOutAddress = resolveMainnetToken(tokenOut, 'tokenOut');
   if (tokenInAddress.toLowerCase() === tokenOutAddress.toLowerCase()) throw new Error('Input and output tokens must differ.');
+  const inputIsNative = tokenInAddress.toLowerCase() === ZEROEX_NATIVE_TOKEN.toLowerCase();
+  const outputIsNative = tokenOutAddress.toLowerCase() === ZEROEX_NATIVE_TOKEN.toLowerCase();
 
   const wallet = await resolveWallet(env, userId);
   const client = getPublicClient(env);
@@ -135,16 +149,16 @@ async function executeMainnetZeroExSwap(input: {
   if (chainId !== 143) throw new Error(`Configured RPC returned chain ID ${chainId}; expected Monad mainnet (143). No transaction was sent.`);
 
   const [decInRaw, decOutRaw] = await Promise.all([
-    client.readContract({ address: tokenInAddress, abi: ERC20_ABI, functionName: 'decimals' }),
-    client.readContract({ address: tokenOutAddress, abi: ERC20_ABI, functionName: 'decimals' }),
+    inputIsNative ? Promise.resolve(18) : client.readContract({ address: tokenInAddress, abi: ERC20_ABI, functionName: 'decimals' }),
+    outputIsNative ? Promise.resolve(18) : client.readContract({ address: tokenOutAddress, abi: ERC20_ABI, functionName: 'decimals' }),
   ]);
   const decIn = Number(decInRaw);
   const decOut = Number(decOutRaw);
   const amountInRaw = parseTokenAmount(amountIn, decIn);
   const [balance, inSymbol, outSymbol] = await Promise.all([
-    client.readContract({ address: tokenInAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] }),
-    client.readContract({ address: tokenInAddress, abi: TOKEN_SYMBOL_ABI, functionName: 'symbol' }).catch(() => tokenInAddress),
-    client.readContract({ address: tokenOutAddress, abi: TOKEN_SYMBOL_ABI, functionName: 'symbol' }).catch(() => tokenOutAddress),
+    inputIsNative ? client.getBalance({ address: wallet.address as `0x${string}` }) : client.readContract({ address: tokenInAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] }),
+    inputIsNative ? Promise.resolve('MON') : client.readContract({ address: tokenInAddress, abi: TOKEN_SYMBOL_ABI, functionName: 'symbol' }).catch(() => tokenInAddress),
+    outputIsNative ? Promise.resolve('MON') : client.readContract({ address: tokenOutAddress, abi: TOKEN_SYMBOL_ABI, functionName: 'symbol' }).catch(() => tokenOutAddress),
   ]);
   if ((balance as bigint) < amountInRaw) throw new Error(`Insufficient ${String(inSymbol)} balance for this swap.`);
 
@@ -157,10 +171,13 @@ async function executeMainnetZeroExSwap(input: {
     slippageBps,
   });
   if (firstQuote.issues?.simulationIncomplete) throw new Error('0x could not complete its quote simulation; refusing to prepare this swap.');
+  const firstTransactionValue = BigInt(firstQuote.transaction.value ?? '0');
+  if (inputIsNative ? firstTransactionValue !== amountInRaw : firstTransactionValue !== 0n) {
+    throw new Error('The swap quote requested an unexpected amount of native MON; no swap was sent. Please request a fresh quote.');
+  }
 
   const formatIn = formatTokenUnits(amountInRaw, decIn);
   const firstMin = BigInt(firstQuote.minBuyAmount);
-  const routeSources = [...new Set((firstQuote.route?.fills ?? []).map((fill) => fill.source).filter((source): source is string => Boolean(source)))];
   const quoteSummary = `${formatIn} ${String(inSymbol)} → about ${formatTokenUnits(BigInt(firstQuote.buyAmount), decOut)} ${String(outSymbol)}; minimum received ${formatTokenUnits(firstMin, decOut)} ${String(outSymbol)} at ${slippageTolerance}% slippage.`;
 
   // Every mainnet aggregator swap requires explicit human approval until mission-scoped
@@ -168,8 +185,7 @@ async function executeMainnetZeroExSwap(input: {
   const gate = await approvalGate({
     action: 'defi_swap_tokens',
     details: {
-      network: 'Monad mainnet (143)',
-      integration: '0x Swap API (AllowanceHolder)',
+      network: 'Monad mainnet',
       from: wallet.address,
       tokenIn: tokenInAddress,
       tokenInSymbol: String(inSymbol),
@@ -179,9 +195,6 @@ async function executeMainnetZeroExSwap(input: {
       expectedOut: firstQuote.buyAmount,
       minimumOut: firstQuote.minBuyAmount,
       slippageTolerance,
-      routeSources,
-      approvalSpender: ZEROEX_ALLOWANCE_HOLDER,
-      transactionTarget: firstQuote.transaction.to,
     },
     valueWei: 0n,
     forceApproval: true,
@@ -191,17 +204,19 @@ async function executeMainnetZeroExSwap(input: {
   });
   if (gate.decision !== 'approved') {
     await auditLog({ tool: 'defi_swap_tokens', userId, result: 'rejected', params: { provider: '0x', tokenIn: tokenInAddress, tokenOut: tokenOutAddress, amountIn: formatIn } });
-    return textResult({ ok: false, approvalRequired: true, requestId: gate.requestId, quote: { buyAmount: firstQuote.buyAmount, minBuyAmount: firstQuote.minBuyAmount }, summary: `${quoteSummary} ${gate.message}` });
+    return textResult({
+      ok: false,
+      approvalRequired: true,
+      quote: { buyAmount: formatTokenUnits(BigInt(firstQuote.buyAmount), decOut), minimum: formatTokenUnits(firstMin, decOut), token: String(outSymbol) },
+      summary: `${quoteSummary} The swap has not been sent. Complete Mochi’s approval request before it can proceed.`,
+    });
   }
 
-  const allowance = (await client.readContract({
-    address: tokenInAddress,
-    abi: APPROVAL_ABI,
-    functionName: 'allowance',
+  const allowance = inputIsNative ? amountInRaw : (await client.readContract({
+    address: tokenInAddress, abi: APPROVAL_ABI, functionName: 'allowance',
     args: [wallet.address as `0x${string}`, ZEROEX_ALLOWANCE_HOLDER],
   })) as bigint;
   let approveTxHash: `0x${string}` | null = null;
-  let approvalResetTxHash: `0x${string}` | null = null;
   const submitAllowance = async (amount: bigint): Promise<`0x${string}`> => {
     const approveData = encodeFunctionData({ abi: APPROVAL_ABI, functionName: 'approve', args: [ZEROEX_ALLOWANCE_HOLDER, amount] });
     const approvalSimulation = await simulateTx(env, { from: wallet.address, to: tokenInAddress, value: 0n, data: approveData });
@@ -211,10 +226,10 @@ async function executeMainnetZeroExSwap(input: {
     if (receipt.status !== 'success') throw new Error(`Token approval transaction reverted: ${hash}`);
     return hash;
   };
-  if (allowance !== amountInRaw) {
+  if (!inputIsNative && allowance !== amountInRaw) {
     // Replace any oversized standing allowance too. Reset first for tokens
     // that require zero-before-nonzero approval semantics.
-    if (allowance > 0n) approvalResetTxHash = await submitAllowance(0n);
+    if (allowance > 0n) await submitAllowance(0n);
     approveTxHash = await submitAllowance(amountInRaw);
   }
 
@@ -231,36 +246,40 @@ async function executeMainnetZeroExSwap(input: {
   if (BigInt(quote.minBuyAmount) < firstMin) {
     throw new Error('The executable quote now gives less than the human-approved minimum output. Swap aborted; request a fresh approval.');
   }
-  if (quote.transaction.value && BigInt(quote.transaction.value) !== 0n) throw new Error('ERC-20 swap quote unexpectedly requires native MON; swap aborted.');
+  const transactionValue = BigInt(quote.transaction.value ?? '0');
+  if (inputIsNative ? transactionValue !== amountInRaw : transactionValue !== 0n) {
+    throw new Error('The swap quote requested an unexpected amount of native MON; no swap was sent. Please request a fresh quote.');
+  }
 
   const data = quote.transaction.data as `0x${string}`;
-  const simulation = await simulateTx(env, { from: wallet.address, to: quote.transaction.to, value: 0n, data });
+  const simulation = await simulateTx(env, { from: wallet.address, to: quote.transaction.to, value: transactionValue, data });
   if (!simulation.ok) throw new Error(`Swap simulation failed; no swap was broadcast: ${simulation.reason}`);
-  const outputBefore = (await client.readContract({ address: tokenOutAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] })) as bigint;
-  const hash = await privySendTransaction(env, wallet, { to: quote.transaction.to as `0x${string}`, value: 0n, data });
+  const outputBefore = outputIsNative
+    ? await client.getBalance({ address: wallet.address as `0x${string}` })
+    : (await client.readContract({ address: tokenOutAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] })) as bigint;
+  const hash = await privySendTransaction(env, wallet, { to: quote.transaction.to as `0x${string}`, value: transactionValue, data });
   const receipt = await client.waitForTransactionReceipt({ hash });
   if (receipt.status !== 'success') throw new Error(`Swap transaction reverted: ${hash}`);
-  const outputAfter = (await client.readContract({ address: tokenOutAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] })) as bigint;
-  const received = outputAfter >= outputBefore ? outputAfter - outputBefore : 0n;
+  const outputAfter = outputIsNative
+    ? await client.getBalance({ address: wallet.address as `0x${string}` })
+    : (await client.readContract({ address: tokenOutAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] })) as bigint;
+  const gasPaid = receipt.gasUsed * (receipt.effectiveGasPrice ?? 0n);
+  const received = outputIsNative
+    ? (outputAfter + gasPaid >= outputBefore ? outputAfter + gasPaid - outputBefore : 0n)
+    : (outputAfter >= outputBefore ? outputAfter - outputBefore : 0n);
   await auditLog({ tool: 'defi_swap_tokens', userId, result: 'ok', txHash: hash, params: { provider: '0x', network: 'mainnet', tokenIn: tokenInAddress, tokenOut: tokenOutAddress, amountIn: amountInRaw.toString(), minimumOut: quote.minBuyAmount, approveTxHash } });
 
+  const receivedFormatted = formatTokenUnits(received, decOut);
+  const minimumFormatted = formatTokenUnits(BigInt(quote.minBuyAmount), decOut);
   return textResult({
     ok: true,
-    provider: '0x',
-    network: 'Monad mainnet (143)',
-    txHash: hash,
+    network: 'Monad mainnet',
+    swapped: `${formatIn} ${String(inSymbol)}`,
+    received: `${receivedFormatted} ${String(outSymbol)}`,
+    minimumReceived: `${minimumFormatted} ${String(outSymbol)}`,
+    estimatedNetworkFee: `${formatEther(simulation.feeWei)} MON`,
     explorerUrl: explorerTxUrl(env, hash),
-    approvalTxHash: approveTxHash,
-    approvalExplorerUrl: approveTxHash ? explorerTxUrl(env, approveTxHash) : null,
-    approvalResetTxHash,
-    approvalResetExplorerUrl: approvalResetTxHash ? explorerTxUrl(env, approvalResetTxHash) : null,
-    tokenIn: { address: tokenInAddress, symbol: String(inSymbol), amount: formatIn },
-    tokenOut: { address: tokenOutAddress, symbol: String(outSymbol), quoted: formatTokenUnits(BigInt(quote.buyAmount), decOut), minimum: formatTokenUnits(BigInt(quote.minBuyAmount), decOut), received: formatTokenUnits(received, decOut) },
-    routeSources: [...new Set((quote.route?.fills ?? []).map((fill) => fill.source).filter((source): source is string => Boolean(source)))],
-    simulatedFeeMON: formatEther(simulation.feeWei),
-    blockNumber: receipt.blockNumber.toString(),
-    gasUsed: receipt.gasUsed.toString(),
-    summary: `Swapped ${formatIn} ${String(inSymbol)} for ${formatTokenUnits(received, decOut)} ${String(outSymbol)} on Monad via 0x. Minimum approved output: ${formatTokenUnits(BigInt(quote.minBuyAmount), decOut)} ${String(outSymbol)}. Transaction: ${explorerTxUrl(env, hash)}`,
+    summary: `Swap complete: ${formatIn} ${String(inSymbol)} became ${receivedFormatted} ${String(outSymbol)} on Monad.`,
   });
 }
 
@@ -612,19 +631,19 @@ export function registerDeFiTools(server: McpServer, env: Env): void {
   addTool(
     server,
     'defi_swap_tokens',
-    'Swap tokens on Monad mainnet through a firm 0x quote with mandatory human approval, exact AllowanceHolder allowance, and transaction simulation; on testnet use the configured demo router.',
+    'Swap tokens on Monad mainnet through Mochi’s automatic verified 0x route with mandatory human approval and transaction simulation; accepts MON, WMON, USDC, AUSD, or token addresses. MON means native MON and WMON means wrapped MON. On testnet, use the configured demo router.',
     {
-      tokenIn: z.string().describe('Input token address (0x...) or mock symbol (TTA/TTB)'),
-      tokenOut: z.string().describe('Output token address (0x...) or mock symbol'),
+      tokenIn: z.string().describe('Input asset: MON (native), WMON (wrapped), USDC, AUSD, or a token address. MON and WMON are different assets.'),
+      tokenOut: z.string().describe('Output asset: MON (native), WMON (wrapped), USDC, AUSD, or a token address.'),
       amountIn: z.string().describe('Human-readable input amount, e.g. "1"'),
       slippageTolerance: z.number().min(0).max(50).default(0.5).describe('Max slippage % (default 0.5)'),
-      routerAddress: z.string().optional().describe('Override DEX router/pool address'),
+      routerAddress: z.string().optional().describe('Testnet-only router override; Mochi selects its verified route automatically on mainnet.'),
       userId: z.string().optional().describe('User/session id owning the wallet'),
     },
     async ({ tokenIn, tokenOut, amountIn, slippageTolerance, routerAddress, userId }: { tokenIn: string; tokenOut: string; amountIn: string; slippageTolerance: number; routerAddress?: string; userId?: string }) => {
       try {
         if (env.MONAD_NETWORK === 'mainnet') {
-          if (routerAddress) throw new Error('Custom router overrides are disabled on mainnet. Mainnet swaps use the verified 0x AllowanceHolder adapter.');
+          if (routerAddress) throw new Error('Mochi selects a verified route automatically on mainnet.');
           return await executeMainnetZeroExSwap({ env, tokenIn, tokenOut, amountIn, slippageTolerance, userId });
         }
         const dex = getDexConfig(env);

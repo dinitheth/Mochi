@@ -129,7 +129,7 @@ export default function ApprovalModal({
                     {payment.riskCheck && typeof payment.riskCheck === 'object' && Array.isArray((payment.riskCheck as Record<string, unknown>).flags) && ((payment.riskCheck as { flags: string[] }).flags).length > 0 ? <p className="text-xs text-amber-200">Please review this payment carefully before approving.</p> : null}
                   </div>
                 ))}
-                <p className="text-xs text-white/50">Estimated batch network fee: {String(a.details.estimatedTotalFeeMON ?? 'unknown')} MON · Monad chain {String(a.details.chainId ?? '143')}</p>
+                <p className="text-xs text-white/50">Estimated batch network fee: {String(a.details.estimatedTotalFeeMON ?? 'unknown')} MON · Monad</p>
               </div>
             ) : null}
             {a.details.riskCheck && typeof a.details.riskCheck === 'object' && Array.isArray((a.details.riskCheck as Record<string, unknown>).flags) && ((a.details.riskCheck as { flags: string[] }).flags).length > 0 ? (
