@@ -31,6 +31,15 @@ export interface ZeroExSwapQuote {
   };
 }
 
+export interface ZeroExSwapPrice {
+  sellToken: string;
+  buyToken: string;
+  sellAmount: string;
+  buyAmount: string;
+  minBuyAmount: string;
+  liquidityAvailable: boolean;
+}
+
 function requireUnsignedInteger(value: unknown, field: string): string {
   if (typeof value !== 'string' || !/^\d+$/.test(value)) {
     throw new Error(`0x returned an invalid ${field}.`);
@@ -43,6 +52,50 @@ function requireAddress(value: unknown, field: string): string {
     throw new Error(`0x returned an invalid ${field} address.`);
   }
   return getAddress(value);
+}
+
+/** Read-only indicative exact-input price. This endpoint never returns executable calldata. */
+export async function getZeroExSwapPrice(
+  env: Env,
+  input: {
+    sellToken: `0x${string}`;
+    buyToken: `0x${string}`;
+    sellAmount: bigint;
+    taker: `0x${string}`;
+    slippageBps: number;
+  },
+): Promise<ZeroExSwapPrice> {
+  if (!env.OX_API_KEY) throw new Error('Set OX_API_KEY to enable 0x prices on Monad mainnet.');
+  const params = new URLSearchParams({
+    chainId: '143', sellToken: input.sellToken, buyToken: input.buyToken,
+    sellAmount: input.sellAmount.toString(), taker: input.taker,
+    slippageBps: String(input.slippageBps),
+  });
+  const response = await fetch(`https://api.0x.org/swap/allowance-holder/price?${params}`, {
+    headers: { '0x-api-key': env.OX_API_KEY, '0x-version': 'v2', accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+  });
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) {
+    const detail = typeof payload?.reason === 'string' ? payload.reason :
+      typeof payload?.message === 'string' ? payload.message : `HTTP ${response.status}`;
+    throw new Error(`0x price request failed: ${detail}`);
+  }
+  if (!payload || typeof payload !== 'object') throw new Error('0x returned an empty price.');
+  if (payload.liquidityAvailable !== true) throw new Error('0x reports no available liquidity for this token pair.');
+  const sellToken = requireAddress(payload.sellToken, 'sell token');
+  const buyToken = requireAddress(payload.buyToken, 'buy token');
+  if (sellToken.toLowerCase() !== input.sellToken.toLowerCase() || buyToken.toLowerCase() !== input.buyToken.toLowerCase()) {
+    throw new Error('0x price token pair did not match the requested pair.');
+  }
+  const sellAmount = requireUnsignedInteger(payload.sellAmount, 'sell amount');
+  if (sellAmount !== input.sellAmount.toString()) throw new Error('0x price amount did not match the requested amount.');
+  return {
+    sellToken, buyToken, sellAmount,
+    buyAmount: requireUnsignedInteger(payload.buyAmount, 'buy amount'),
+    minBuyAmount: requireUnsignedInteger(payload.minBuyAmount, 'minimum buy amount'),
+    liquidityAvailable: true,
+  };
 }
 
 /**

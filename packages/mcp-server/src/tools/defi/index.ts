@@ -9,7 +9,7 @@ import { approvalGate } from '../../middleware/approval-gate.js';
 import { auditLog } from '../../middleware/audit-log.js';
 import { ERC20_ABI, addTool, assertAddress, formatTokenUnits, resolveWallet, textResult } from '../shared.js';
 import { simulateTx } from '../../middleware/simulate.js';
-import { getZeroExSwapQuote, ZEROEX_ALLOWANCE_HOLDER, ZEROEX_NATIVE_TOKEN } from '../../integrations/zeroex.js';
+import { getZeroExSwapPrice, getZeroExSwapQuote, ZEROEX_ALLOWANCE_HOLDER, ZEROEX_NATIVE_TOKEN } from '../../integrations/zeroex.js';
 import { fetchMonadTokenFlows, fetchMonadTokenScreen } from '../../integrations/nansen.js';
 import { fetchZerionMonadTokenPosition } from '../../integrations/zerion.js';
 import { hyperSyncLogs } from '../../config/hypersync.js';
@@ -125,6 +125,57 @@ const MAINNET_TOKEN_ALIASES: Record<string, `0x${string}`> = {
 function resolveMainnetToken(value: string, label: string): `0x${string}` {
   const alias = MAINNET_TOKEN_ALIASES[value.trim().toLowerCase()];
   return alias ?? asAddress(value, label);
+}
+
+async function quoteMainnetSwap(input: {
+  env: Env;
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string;
+  slippageTolerance: number;
+  userId?: string;
+}): Promise<ReturnType<typeof textResult>> {
+  const { env, tokenIn, tokenOut, amountIn, slippageTolerance, userId } = input;
+  if (env.MONAD_NETWORK !== 'mainnet') throw new Error('Indicative Mochi quotes are available on Monad mainnet.');
+  const sellToken = resolveMainnetToken(tokenIn, 'tokenIn');
+  const buyToken = resolveMainnetToken(tokenOut, 'tokenOut');
+  if (sellToken.toLowerCase() === buyToken.toLowerCase()) throw new Error('Input and output tokens must differ.');
+  const wallet = await resolveWallet(env, userId);
+  const client = getPublicClient(env);
+  const chainId = await client.getChainId();
+  if (chainId !== NETWORK_META.mainnet.chainId) throw new Error('Mochi is connected to the wrong network. No swap was made.');
+  const sellIsNative = sellToken.toLowerCase() === ZEROEX_NATIVE_TOKEN.toLowerCase();
+  const buyIsNative = buyToken.toLowerCase() === ZEROEX_NATIVE_TOKEN.toLowerCase();
+  const [sellDecimalsRaw, buyDecimalsRaw] = await Promise.all([
+    sellIsNative ? Promise.resolve(18) : client.readContract({ address: sellToken, abi: ERC20_ABI, functionName: 'decimals' }),
+    buyIsNative ? Promise.resolve(18) : client.readContract({ address: buyToken, abi: ERC20_ABI, functionName: 'decimals' }),
+  ]);
+  const sellDecimals = Number(sellDecimalsRaw);
+  const buyDecimals = Number(buyDecimalsRaw);
+  const sellAmount = parseTokenAmount(amountIn, sellDecimals);
+  const [balance, sellSymbol, buySymbol] = await Promise.all([
+    sellIsNative ? client.getBalance({ address: wallet.address as `0x${string}` }) : client.readContract({ address: sellToken, abi: ERC20_ABI, functionName: 'balanceOf', args: [wallet.address as `0x${string}`] }),
+    sellIsNative ? Promise.resolve('MON') : client.readContract({ address: sellToken, abi: TOKEN_SYMBOL_ABI, functionName: 'symbol' }).catch(() => tokenIn),
+    buyIsNative ? Promise.resolve('MON') : client.readContract({ address: buyToken, abi: TOKEN_SYMBOL_ABI, functionName: 'symbol' }).catch(() => tokenOut),
+  ]);
+  if ((balance as bigint) < sellAmount) throw new Error(`Insufficient ${String(sellSymbol)} balance for this swap.`);
+  const price = await getZeroExSwapPrice(env, {
+    sellToken, buyToken, sellAmount,
+    taker: wallet.address as `0x${string}`,
+    slippageBps: Math.round(slippageTolerance * 100),
+  });
+  const expectedOut = formatTokenUnits(BigInt(price.buyAmount), buyDecimals);
+  const minimumOut = formatTokenUnits(BigInt(price.minBuyAmount), buyDecimals);
+  const formattedIn = formatTokenUnits(sellAmount, sellDecimals);
+  return textResult({
+    ok: true,
+    indicative: true,
+    amountIn: `${formattedIn} ${String(sellSymbol)}`,
+    expectedOut: `${expectedOut} ${String(buySymbol)}`,
+    minimumOut: `${minimumOut} ${String(buySymbol)}`,
+    slippageTolerance: `${slippageTolerance}%`,
+    summary: `Mochi found a route for ${formattedIn} ${String(sellSymbol)} to about ${expectedOut} ${String(buySymbol)}. At ${slippageTolerance}% price protection, you would receive at least ${minimumOut} ${String(buySymbol)}. This is an estimate only; no transaction has been prepared or sent.`,
+  });
 }
 
 async function executeMainnetZeroExSwap(input: {
@@ -630,8 +681,30 @@ export function registerDeFiTools(server: McpServer, env: Env): void {
 
   addTool(
     server,
+    'defi_quote_swap',
+    'Get a read-only Mochi estimate for a Monad mainnet token swap. Use this first for swap requests, including native MON. MON is native and distinct from WMON. This returns an estimate only and never prepares or submits a transaction.',
+    {
+      tokenIn: z.string().describe('Input asset: MON (native), WMON (wrapped), USDC, AUSD, or a token address.'),
+      tokenOut: z.string().describe('Output asset: MON (native), WMON (wrapped), USDC, AUSD, or a token address.'),
+      amountIn: z.string().describe('Human-readable input amount, e.g. "0.1".'),
+      slippageTolerance: z.number().min(0).max(50).default(0.5).describe('Maximum price movement, as a percent (default 0.5).'),
+      userId: z.string().optional().describe('User/session id owning the wallet.'),
+    },
+    async ({ tokenIn, tokenOut, amountIn, slippageTolerance, userId }: { tokenIn: string; tokenOut: string; amountIn: string; slippageTolerance: number; userId?: string }) => {
+      try {
+        return await quoteMainnetSwap({ env, tokenIn, tokenOut, amountIn, slippageTolerance, userId });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await auditLog({ tool: 'defi_quote_swap', userId, result: 'error', error: msg });
+        return textResult({ ok: false, error: msg });
+      }
+    },
+  );
+
+  addTool(
+    server,
     'defi_swap_tokens',
-    'Swap tokens on Monad mainnet through Mochi’s automatic verified 0x route with mandatory human approval and transaction simulation; accepts MON, WMON, USDC, AUSD, or token addresses. MON means native MON and WMON means wrapped MON. On testnet, use the configured demo router.',
+    'Prepare and execute a swap through Mochi’s verified route, with explicit approval and safety checks. Before a swap, call defi_quote_swap to show the estimate. MON means native MON and WMON means wrapped MON. On mainnet, no transaction proceeds without the required approval.',
     {
       tokenIn: z.string().describe('Input asset: MON (native), WMON (wrapped), USDC, AUSD, or a token address. MON and WMON are different assets.'),
       tokenOut: z.string().describe('Output asset: MON (native), WMON (wrapped), USDC, AUSD, or a token address.'),
