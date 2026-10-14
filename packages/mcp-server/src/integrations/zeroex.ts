@@ -1,10 +1,17 @@
 import { getAddress, isAddress } from 'viem';
 import type { Env } from '../config/env.js';
+import { getPublicClient } from '../config/monad.js';
 
 /** Canonical 0x AllowanceHolder for Monad (chain 143), per the 0x contract docs. */
 export const ZEROEX_ALLOWANCE_HOLDER = '0x0000000000001fF3684f28c67538d4D072C22734' as const;
 /** 0x standard native-token sentinel used for MON on Monad. */
 export const ZEROEX_NATIVE_TOKEN = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as const;
+/** 0x registry; latest taker-submitted Settler is read from ownerOf(2) per quote. */
+export const ZEROEX_SETTLER_REGISTRY = '0x00000000000004533Fe15556B1E086BB1A72cEae' as const;
+
+const ZEROEX_SETTLER_REGISTRY_ABI = [
+  { type: 'function', name: 'ownerOf', stateMutability: 'view', inputs: [{ name: 'tokenId', type: 'uint256' }], outputs: [{ name: '', type: 'address' }] },
+] as const;
 
 export interface ZeroExSwapQuote {
   allowanceTarget: string;
@@ -52,6 +59,16 @@ function requireAddress(value: unknown, field: string): string {
     throw new Error(`0x returned an invalid ${field} address.`);
   }
   return getAddress(value);
+}
+
+async function getCurrentSettler(env: Env): Promise<string> {
+  const settler = await getPublicClient(env).readContract({
+    address: ZEROEX_SETTLER_REGISTRY,
+    abi: ZEROEX_SETTLER_REGISTRY_ABI,
+    functionName: 'ownerOf',
+    args: [2n],
+  });
+  return requireAddress(settler, 'current settlement contract');
 }
 
 /** Read-only indicative exact-input price. This endpoint never returns executable calldata. */
@@ -138,6 +155,11 @@ export async function getZeroExSwapQuote(
 
   const tx = payload.transaction as Record<string, unknown> | undefined;
   if (!tx || typeof tx !== 'object') throw new Error('0x quote did not include a transaction.');
+  const sellToken = requireAddress(payload.sellToken, 'sell token');
+  const buyToken = requireAddress(payload.buyToken, 'buy token');
+  if (sellToken.toLowerCase() !== input.sellToken.toLowerCase() || buyToken.toLowerCase() !== input.buyToken.toLowerCase()) {
+    throw new Error('0x quote token pair did not match the requested pair.');
+  }
   const allowanceTarget = requireAddress(payload.allowanceTarget, 'allowance target');
   if (allowanceTarget.toLowerCase() !== ZEROEX_ALLOWANCE_HOLDER.toLowerCase()) {
     throw new Error('0x returned an unexpected approval target; no transaction was sent.');
@@ -155,16 +177,11 @@ export async function getZeroExSwapQuote(
     ...(tx.gasPrice !== undefined ? { gasPrice: requireUnsignedInteger(tx.gasPrice, 'transaction gas price') } : {}),
   };
   if (!transaction.data || transaction.data.length < 10) throw new Error('0x returned empty or malformed transaction calldata.');
-  // ERC-20 AllowanceHolder quotes execute at the same target they approve.
-  // This adapter does not accept native-MON sell-token quotes (which may use Settler).
-  if (transaction.to.toLowerCase() !== ZEROEX_ALLOWANCE_HOLDER.toLowerCase()) {
-    throw new Error('0x returned an unexpected transaction target for the AllowanceHolder flow.');
-  }
-
-  const sellToken = requireAddress(payload.sellToken, 'sell token');
-  const buyToken = requireAddress(payload.buyToken, 'buy token');
-  if (sellToken.toLowerCase() !== input.sellToken.toLowerCase() || buyToken.toLowerCase() !== input.buyToken.toLowerCase()) {
-    throw new Error('0x quote token pair did not match the requested pair.');
+  const hasNativeToken = sellToken.toLowerCase() === ZEROEX_NATIVE_TOKEN.toLowerCase() || buyToken.toLowerCase() === ZEROEX_NATIVE_TOKEN.toLowerCase();
+  const isAllowanceHolder = transaction.to.toLowerCase() === ZEROEX_ALLOWANCE_HOLDER.toLowerCase();
+  const isCurrentSettler = !isAllowanceHolder && hasNativeToken && transaction.to.toLowerCase() === (await getCurrentSettler(env)).toLowerCase();
+  if (!isAllowanceHolder && !isCurrentSettler) {
+    throw new Error('0x returned a transaction target that Mochi could not verify.');
   }
   const sellAmount = requireUnsignedInteger(payload.sellAmount, 'sell amount');
   if (sellAmount !== input.sellAmount.toString()) throw new Error('0x quote amount did not match the requested amount.');

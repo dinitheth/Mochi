@@ -197,7 +197,7 @@ async function executeMainnetZeroExSwap(input: {
   const wallet = await resolveWallet(env, userId);
   const client = getPublicClient(env);
   const chainId = await client.getChainId();
-  if (chainId !== 143) throw new Error(`Configured RPC returned chain ID ${chainId}; expected Monad mainnet (143). No transaction was sent.`);
+  if (chainId !== NETWORK_META.mainnet.chainId) throw new Error('Mochi is connected to the wrong network. No swap was sent.');
 
   const [decInRaw, decOutRaw] = await Promise.all([
     inputIsNative ? Promise.resolve(18) : client.readContract({ address: tokenInAddress, abi: ERC20_ABI, functionName: 'decimals' }),
@@ -359,7 +359,7 @@ export function registerDeFiTools(server: McpServer, env: Env): void {
 
         const client = getPublicClient(env);
         const chainId = await client.getChainId();
-        if (chainId !== 143) throw new Error(`Configured RPC returned chain ID ${chainId}; expected Monad mainnet (143).`);
+        if (chainId !== NETWORK_META.mainnet.chainId) throw new Error('Mochi is connected to the wrong network. No swap was made.');
 
         const sourceStatus: Record<string, string> = {};
         let marketTokens: Awaited<ReturnType<typeof fetchMonadTokenScreen>> = [];
@@ -504,7 +504,7 @@ export function registerDeFiTools(server: McpServer, env: Env): void {
         const tokens = await fetchMonadTokenScreen(env, limit);
         const client = getPublicClient(env);
         const chainId = await client.getChainId();
-        if (chainId !== 143) throw new Error(`Configured RPC returned chain ID ${chainId}; expected Monad mainnet (143).`);
+        if (chainId !== NETWORK_META.mainnet.chainId) throw new Error('Mochi is connected to the wrong network. No swap was made.');
 
         let activity: { provider: string; fromBlock: number; toBlock: number; complete: boolean; transferCounts: Record<string, number> } | null = null;
         if (tokens.length > 0 && env.HYPERSYNC_TOKEN && env.HYPERSYNC_URL.includes('monad') && !env.HYPERSYNC_URL.toLowerCase().includes('testnet')) {
