@@ -6,24 +6,50 @@ export const metadata = {
   description: 'Meet Mochi: wallet, payment, NFT, and Monad tools for your AI assistant, with clear controls for actions involving your funds.',
 };
 
-const features = [
+const capabilities = [
   {
     number: '01',
-    title: 'Know where you stand',
-    text: 'Check wallet balances, portfolio information, network activity, and transaction costs in one conversation.',
+    eyebrow: 'FOR YOUR WALLET',
+    title: 'See what’s happening with your money',
+    points: [
+      'Check MON and supported token balances, your wallet address, and the total value of your wallet.',
+      'Review recent token transfers in plain language and look up transaction status.',
+      'Save people by name, send MON or supported tokens, and see an estimated network fee.',
+    ],
     icon: '◉',
   },
   {
     number: '02',
-    title: 'Handle payments',
-    text: 'Create payment requests, review AUSD invoices, prepare payouts, and keep payment records organized.',
+    eyebrow: 'FOR BUSINESSES',
+    title: 'Manage customer and supplier payments',
+    points: [
+      'Create AUSD payment requests with a shareable QR code and wallet link.',
+      'Check incoming payments, review invoices, and keep a searchable payment history.',
+      'Prepare supplier payouts in batches of up to 20, issue eligible refunds, and export closeout reports.',
+    ],
     icon: '↗',
   },
   {
     number: '03',
-    title: 'Explore Monad',
-    text: 'Look into token activity, NFT collections, market information, staking, and lending positions.',
+    eyebrow: 'FOR RESEARCH',
+    title: 'Explore Monad and your positions',
+    points: [
+      'Look up token prices, recent market trends, and token movement on Monad.',
+      'Find Monad NFT collections, view active OpenSea listings, and check NFTs held by a wallet.',
+      'Check Aave lending and Kintsu staking balances, and explore Perpl and Kuru markets.',
+    ],
     icon: '✳',
+  },
+  {
+    number: '04',
+    eyebrow: 'WHEN YOU WANT TO ACT',
+    title: 'Prepare actions with clear review',
+    points: [
+      'Get an estimate for supported token swaps before deciding whether to continue.',
+      'Prepare supported payments, token sends, staking, NFT purchases, and other wallet actions.',
+      'Review actions that need approval before they go through, then follow their status and receipt.',
+    ],
+    icon: '✦',
   },
 ];
 
@@ -54,7 +80,7 @@ export default function AboutPage() {
           <div className="landing-kicker"><span className="status-dot" /> YOUR MONAD WALLET, IN YOUR FLOW</div>
           <h1>Money tools that<br /><span>feel more human.</span></h1>
           <p className="hero-lede">
-            Mochi brings your wallet and Monad tools into the AI assistant you already use. Check information, handle payments, and explore on-chain activity through a simple conversation.
+            Check MON and token balances, review NFT listings, get supported swap estimates, and manage AUSD payment requests or payouts—all by asking in plain language.
           </p>
           <div className="hero-actions">
             <a className="button-primary" href="#connect">Connect Mochi <span aria-hidden="true">↗</span></a>
@@ -92,30 +118,33 @@ export default function AboutPage() {
 
       <section className="features-section" id="what-it-does">
         <div className="section-heading">
-          <p className="section-kicker">A LITTLE MORE CLARITY</p>
-          <h2>What Mochi can help with</h2>
-          <p>Wallet and business tasks, brought together in one place.</p>
+          <p className="section-kicker">HERE’S WHAT YOU CAN ASK</p>
+          <h2>What Mochi actually does</h2>
+          <p>From a quick wallet check to a full payment closeout, Mochi helps with practical tasks across Monad.</p>
         </div>
         <div className="feature-grid">
-          {features.map((feature) => (
+          {capabilities.map((feature) => (
             <article className="feature-card" key={feature.number}>
-              <div className="feature-top"><span className="feature-icon" aria-hidden="true">{feature.icon}</span><span className="feature-number">{feature.number}</span></div>
+              <div className="feature-top"><span className="feature-icon" aria-hidden="true">{feature.icon}</span><span className="feature-number">{feature.eyebrow}</span></div>
               <h3>{feature.title}</h3>
-              <p>{feature.text}</p>
+              <ul>
+                {feature.points.map((point) => <li key={point}>{point}</li>)}
+              </ul>
             </article>
           ))}
         </div>
         <div className="feature-ribbon">
-          <div><span className="ribbon-spark">✦</span><strong>For people</strong><span>Wallet info, market research, NFTs, and supported on-chain actions.</span></div>
-          <div><span className="ribbon-spark">✦</span><strong>For business</strong><span>Payment requests, invoice checks, payouts, and payment records.</span></div>
+          <div><span className="ribbon-spark">✦</span><strong>For people</strong><span>“Check my balance.” “Show my NFTs.” “What happened to that transfer?”</span></div>
+          <div><span className="ribbon-spark">✦</span><strong>For business</strong><span>“Create an AUSD request.” “Check these invoices.” “Prepare supplier payouts.”</span></div>
         </div>
+        <p className="capability-note">Some features depend on the connected service and available Monad data. NFT marketplace and lending actions that use Mochi demo contracts are experimental; check each action carefully before approving it.</p>
       </section>
 
       <section className="safety-section" id="how-it-works">
         <div className="safety-intro">
           <p className="section-kicker">YOUR WALLET. YOUR CALL.</p>
           <h2>Helpful by design.<br /><span>Always in your hands.</span></h2>
-          <p>Mochi can gather information or prepare an action. Depending on your settings and the action, it may ask you to review and approve before it proceeds.</p>
+          <p>Mochi can answer questions and prepare supported actions. When an action needs approval, you can review what it will do before it is submitted.</p>
         </div>
         <div className="steps-list">
           {steps.map(([title, text], index) => (

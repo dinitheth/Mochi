@@ -7,7 +7,6 @@ build/
 cache/
 *.local
 *.tsbuildinfo
-.env
 .env*.local
 packages/dashboard/.next/
 packages/mcp-server/dist/
@@ -28,3 +27,4 @@ dash-err.log
 .DS_Store
 mochi-runtime-secret.json
 packages/mcp-server/oauth-state.json*
+config.bat
