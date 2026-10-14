@@ -23,7 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body className="min-h-screen">
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className={publicPage ? 'min-h-screen w-full' : 'max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6'}>
           {publicPage ? (
             children
           ) : (
